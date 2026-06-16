@@ -179,7 +179,7 @@ export default async function DashboardPage() {
             <CardContent>
               <div className="text-3xl font-bold text-gray-900">{posPendingApproval}</div>
               <Link href="/dashboard/purchase-orders" className="text-xs text-blue-600 hover:underline mt-1 block">
-                View all →
+                View all &rarr;
               </Link>
             </CardContent>
           </Card>
@@ -191,7 +191,7 @@ export default async function DashboardPage() {
             <CardContent>
               <div className="text-3xl font-bold text-gray-900">{grnsPending}</div>
               <Link href="/dashboard/grn" className="text-xs text-blue-600 hover:underline mt-1 block">
-                View all →
+                View all &rarr;
               </Link>
             </CardContent>
           </Card>
@@ -209,7 +209,7 @@ export default async function DashboardPage() {
             <CardContent>
               <div className="text-3xl font-bold text-gray-900">{lowStockCount}</div>
               <Link href="/dashboard/stock" className="text-xs text-blue-600 hover:underline mt-1 block">
-                View inventory →
+                View inventory &rarr;
               </Link>
             </CardContent>
           </Card>

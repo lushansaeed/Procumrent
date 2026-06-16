@@ -175,7 +175,7 @@ export function Sidebar({ user }: SidebarProps) {
       </nav>
 
       <div className="px-3 py-4 border-t border-gray-700">
-        <p className="text-xs text-gray-500 px-3">© 2025 Vahmaafushi</p>
+        <p className="text-xs text-gray-500 px-3">&copy; 2025 Vahmaafushi</p>
       </div>
     </aside>
   );
