@@ -5,13 +5,7 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 const PO_STATUSES = [
   { value: "DRAFT", label: "Draft" },
@@ -24,13 +18,7 @@ const PO_STATUSES = [
   { value: "CLOSED", label: "Closed" },
 ];
 
-export function POStatusUpdate({
-  poId,
-  currentStatus,
-}: {
-  poId: string;
-  currentStatus: string;
-}) {
+export function POStatusUpdate({ poId, currentStatus }: { poId: string; currentStatus: string }) {
   const router = useRouter();
   const [status, setStatus] = useState(currentStatus);
   const [loading, setLoading] = useState(false);
@@ -44,10 +32,7 @@ export function POStatusUpdate({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status }),
       });
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error(err.error ?? "Failed to update status");
-      }
+      if (!res.ok) { const err = await res.json().catch(() => ({})); throw new Error(err.error ?? "Failed to update status"); }
       toast.success("Status updated successfully");
       router.refresh();
     } catch (err: unknown) {
@@ -59,27 +44,15 @@ export function POStatusUpdate({
 
   return (
     <Card>
-      <CardHeader>
-        <CardTitle>Update Status</CardTitle>
-      </CardHeader>
+      <CardHeader><CardTitle>Update Status</CardTitle></CardHeader>
       <CardContent className="space-y-3">
         <Select value={status} onValueChange={setStatus}>
-          <SelectTrigger>
-            <SelectValue />
-          </SelectTrigger>
+          <SelectTrigger><SelectValue /></SelectTrigger>
           <SelectContent>
-            {PO_STATUSES.map((s) => (
-              <SelectItem key={s.value} value={s.value}>
-                {s.label}
-              </SelectItem>
-            ))}
+            {PO_STATUSES.map((s) => (<SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>))}
           </SelectContent>
         </Select>
-        <Button
-          onClick={handleUpdate}
-          disabled={loading || status === currentStatus}
-          className="w-full bg-blue-600 hover:bg-blue-700"
-        >
+        <Button onClick={handleUpdate} disabled={loading || status === currentStatus} className="w-full bg-blue-600 hover:bg-blue-700">
           {loading ? "Updating..." : "Update Status"}
         </Button>
       </CardContent>

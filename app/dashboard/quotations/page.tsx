@@ -12,10 +12,7 @@ import { FileSearch } from "lucide-react";
 export default async function QuotationsPage() {
   const user = await getSession();
   if (!user) redirect("/login");
-
-  if (!["ADMIN", "PROCUREMENT", "MANAGEMENT"].includes(user.role)) {
-    redirect("/dashboard");
-  }
+  if (!["ADMIN", "PROCUREMENT", "MANAGEMENT"].includes(user.role)) redirect("/dashboard");
 
   const quotations = await db.quotation.findMany({
     include: {
@@ -32,14 +29,12 @@ export default async function QuotationsPage() {
         <h1 className="text-2xl font-bold text-gray-900">Quotations</h1>
         <p className="text-gray-500 text-sm mt-0.5">All supplier quotations</p>
       </div>
-
       <Card>
         <CardContent className="p-0">
           {quotations.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-16 text-gray-400">
               <FileSearch className="w-12 h-12 mb-3 opacity-30" />
               <p className="text-base font-medium">No quotations yet</p>
-              <p className="text-sm mt-1">Quotations will appear here once created.</p>
             </div>
           ) : (
             <div className="overflow-x-auto">
@@ -59,23 +54,11 @@ export default async function QuotationsPage() {
                   {quotations.map((q) => (
                     <tr key={q.id} className="border-b hover:bg-gray-50 transition-colors">
                       <td className="px-6 py-3 font-medium text-gray-900">{q.quotationNumber}</td>
-                      <td className="px-6 py-3">
-                        <Link
-                          href={`/dashboard/requests/${q.request.id}`}
-                          className="text-blue-600 hover:underline"
-                        >
-                          {q.request.requestNumber}
-                        </Link>
-                      </td>
-                      <td className="px-6 py-3">
-                        <div className="font-medium">{q.supplier.name}</div>
-                        <div className="text-xs text-gray-500">{q.supplier.code}</div>
-                      </td>
+                      <td className="px-6 py-3"><Link href={`/dashboard/requests/${q.request.id}`} className="text-blue-600 hover:underline">{q.request.requestNumber}</Link></td>
+                      <td className="px-6 py-3"><div className="font-medium">{q.supplier.name}</div><div className="text-xs text-gray-500">{q.supplier.code}</div></td>
                       <td className="px-6 py-3 text-right">{q._count.items}</td>
                       <td className="px-6 py-3 text-right font-medium">{formatCurrency(q.totalAmount)}</td>
-                      <td className="px-6 py-3">
-                        <Badge className={statusColor(q.status)}>{q.status}</Badge>
-                      </td>
+                      <td className="px-6 py-3"><Badge className={statusColor(q.status)}>{q.status}</Badge></td>
                       <td className="px-6 py-3 text-gray-500">{formatDate(q.createdAt)}</td>
                     </tr>
                   ))}

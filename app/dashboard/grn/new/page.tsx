@@ -82,9 +82,7 @@ export default function NewGRNPage() {
               <div className="space-y-1.5">
                 <Label>Purchase Order *</Label>
                 <Select onValueChange={(v) => setValue("poId", v)}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select PO" />
-                  </SelectTrigger>
+                  <SelectTrigger><SelectValue placeholder="Select PO" /></SelectTrigger>
                   <SelectContent>
                     {pos.length === 0 ? (
                       <SelectItem value="none" disabled>No approved POs available</SelectItem>

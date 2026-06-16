@@ -38,9 +38,7 @@ export default async function ProcurementPage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-gray-900">Procurement Processing</h1>
-        <p className="text-gray-500 text-sm mt-0.5">
-          Requests requiring procurement action — {requests.length} pending
-        </p>
+        <p className="text-gray-500 text-sm mt-0.5">Requests requiring procurement action — {requests.length} pending</p>
       </div>
 
       <Card>
@@ -71,33 +69,18 @@ export default async function ProcurementPage() {
                   {requests.map((req) => (
                     <tr key={req.id} className="border-b hover:bg-gray-50 transition-colors">
                       <td className="px-6 py-3">
-                        <Link
-                          href={`/dashboard/requests/${req.id}`}
-                          className="text-blue-600 hover:underline font-medium"
-                        >
-                          {req.requestNumber}
-                        </Link>
+                        <Link href={`/dashboard/requests/${req.id}`} className="text-blue-600 hover:underline font-medium">{req.requestNumber}</Link>
                       </td>
                       <td className="px-6 py-3">
                         <div className="font-medium text-gray-900">{req.requesterName}</div>
                         <div className="text-xs text-gray-500">{req.requesterDepartment ?? "—"}</div>
                       </td>
-                      <td className="px-6 py-3 max-w-[180px]">
-                        <span className="line-clamp-1 text-gray-700">{req.purpose ?? "—"}</span>
-                      </td>
-                      <td className="px-6 py-3">
-                        <Badge className={requestTypeColor(req.requestType)}>{req.requestType}</Badge>
-                      </td>
-                      <td className="px-6 py-3">
-                        <Badge className={priorityColor(req.priority)}>{req.priority}</Badge>
-                      </td>
+                      <td className="px-6 py-3 max-w-[180px]"><span className="line-clamp-1 text-gray-700">{req.purpose ?? "—"}</span></td>
+                      <td className="px-6 py-3"><Badge className={requestTypeColor(req.requestType)}>{req.requestType}</Badge></td>
+                      <td className="px-6 py-3"><Badge className={priorityColor(req.priority)}>{req.priority}</Badge></td>
                       <td className="px-6 py-3 text-right">{req._count.items}</td>
                       <td className="px-6 py-3 text-right font-medium">{formatCurrency(req.estimatedTotal)}</td>
-                      <td className="px-6 py-3">
-                        <Badge className={statusColor(req.status)}>
-                          {req.status.replace(/_/g, " ")}
-                        </Badge>
-                      </td>
+                      <td className="px-6 py-3"><Badge className={statusColor(req.status)}>{req.status.replace(/_/g, " ")}</Badge></td>
                       <td className="px-6 py-3 text-gray-500 whitespace-nowrap">{formatDate(req.requestDate)}</td>
                     </tr>
                   ))}

@@ -13,18 +13,7 @@ export default async function ReportsPage() {
   const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
   const startOfYear = new Date(now.getFullYear(), 0, 1);
 
-  const [
-    totalRequests,
-    approvedRequests,
-    monthlyRequests,
-    totalPOs,
-    monthlyPOs,
-    totalGRNs,
-    lowStockCount,
-    totalAssets,
-    topCategories,
-    recentPOs,
-  ] = await Promise.all([
+  const [totalRequests, approvedRequests, monthlyRequests, totalPOs, monthlyPOs, totalGRNs, lowStockCount, totalAssets, topCategories, recentPOs] = await Promise.all([
     db.purchaseRequest.count(),
     db.purchaseRequest.count({ where: { status: "APPROVED" } }),
     db.purchaseRequest.count({ where: { createdAt: { gte: startOfMonth } } }),
@@ -34,22 +23,11 @@ export default async function ReportsPage() {
     db.stock.count({ where: { quantity: { lte: 0 } } }),
     db.asset.count(),
     db.itemCategory.findMany({ include: { _count: { select: { items: true } } }, take: 5 }),
-    db.purchaseOrder.findMany({
-      include: { supplier: true },
-      orderBy: { createdAt: "desc" },
-      take: 10,
-    }),
+    db.purchaseOrder.findMany({ include: { supplier: true }, orderBy: { createdAt: "desc" }, take: 10 }),
   ]);
 
-  const poTotals = await db.purchaseOrder.aggregate({
-    _sum: { totalAmount: true },
-    where: { createdAt: { gte: startOfYear } },
-  });
-
-  const monthlySpend = await db.purchaseOrder.aggregate({
-    _sum: { totalAmount: true },
-    where: { createdAt: { gte: startOfMonth } },
-  });
+  const poTotals = await db.purchaseOrder.aggregate({ _sum: { totalAmount: true }, where: { createdAt: { gte: startOfYear } } });
+  const monthlySpend = await db.purchaseOrder.aggregate({ _sum: { totalAmount: true }, where: { createdAt: { gte: startOfMonth } } });
 
   const stats = [
     { label: "Total Requests (YTD)", value: totalRequests, icon: FileText, color: "text-blue-600", bg: "bg-blue-50" },
@@ -63,10 +41,9 @@ export default async function ReportsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">Reports & Analytics</h1>
+        <h1 className="text-2xl font-bold text-gray-900">Reports &amp; Analytics</h1>
         <p className="text-sm text-gray-500 mt-0.5">Year-to-date procurement overview</p>
       </div>
-
       <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
         {stats.map((s) => (
           <Card key={s.label}>
@@ -82,64 +59,34 @@ export default async function ReportsPage() {
           </Card>
         ))}
       </div>
-
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <Card>
           <CardHeader><CardTitle className="text-base">This Month</CardTitle></CardHeader>
           <CardContent className="space-y-3">
-            <div className="flex justify-between text-sm">
-              <span className="text-gray-500">New Requests</span>
-              <span className="font-medium">{monthlyRequests}</span>
-            </div>
-            <div className="flex justify-between text-sm">
-              <span className="text-gray-500">New POs</span>
-              <span className="font-medium">{monthlyPOs}</span>
-            </div>
-            <div className="flex justify-between text-sm">
-              <span className="text-gray-500">Total Spend</span>
-              <span className="font-semibold text-blue-600">{formatCurrency(monthlySpend._sum.totalAmount ?? 0)}</span>
-            </div>
-            <div className="flex justify-between text-sm">
-              <span className="text-gray-500">Low/Out of Stock Items</span>
-              <span className={`font-medium ${lowStockCount > 0 ? "text-red-600" : "text-green-600"}`}>{lowStockCount}</span>
-            </div>
+            <div className="flex justify-between text-sm"><span className="text-gray-500">New Requests</span><span className="font-medium">{monthlyRequests}</span></div>
+            <div className="flex justify-between text-sm"><span className="text-gray-500">New POs</span><span className="font-medium">{monthlyPOs}</span></div>
+            <div className="flex justify-between text-sm"><span className="text-gray-500">Total Spend</span><span className="font-semibold text-blue-600">{formatCurrency(monthlySpend._sum.totalAmount ?? 0)}</span></div>
+            <div className="flex justify-between text-sm"><span className="text-gray-500">Low/Out of Stock Items</span><span className={`font-medium ${lowStockCount > 0 ? "text-red-600" : "text-green-600"}`}>{lowStockCount}</span></div>
           </CardContent>
         </Card>
-
         <Card>
           <CardHeader><CardTitle className="text-base">Top Item Categories</CardTitle></CardHeader>
           <CardContent className="space-y-2">
-            {topCategories.length === 0 ? (
-              <p className="text-sm text-gray-400">No categories yet</p>
-            ) : topCategories.map((c) => (
-              <div key={c.id} className="flex justify-between text-sm">
-                <span className="text-gray-600">{c.name}</span>
-                <span className="font-medium">{c._count.items} items</span>
-              </div>
+            {topCategories.length === 0 ? <p className="text-sm text-gray-400">No categories yet</p> : topCategories.map((c) => (
+              <div key={c.id} className="flex justify-between text-sm"><span className="text-gray-600">{c.name}</span><span className="font-medium">{c._count.items} items</span></div>
             ))}
           </CardContent>
         </Card>
       </div>
-
       <Card>
         <CardHeader><CardTitle className="text-base">Recent Purchase Orders</CardTitle></CardHeader>
         <CardContent className="p-0">
           {recentPOs.length === 0 ? (
-            <div className="flex flex-col items-center py-8 text-gray-400">
-              <p className="text-sm">No purchase orders yet</p>
-            </div>
+            <div className="flex flex-col items-center py-8 text-gray-400"><p className="text-sm">No purchase orders yet</p></div>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b bg-gray-50 text-gray-500 text-xs uppercase tracking-wide">
-                    <th className="px-6 py-3 text-left">PO #</th>
-                    <th className="px-6 py-3 text-left">Supplier</th>
-                    <th className="px-6 py-3 text-left">Status</th>
-                    <th className="px-6 py-3 text-right">Total</th>
-                    <th className="px-6 py-3 text-left">Date</th>
-                  </tr>
-                </thead>
+                <thead><tr className="border-b bg-gray-50 text-gray-500 text-xs uppercase tracking-wide"><th className="px-6 py-3 text-left">PO #</th><th className="px-6 py-3 text-left">Supplier</th><th className="px-6 py-3 text-left">Status</th><th className="px-6 py-3 text-right">Total</th><th className="px-6 py-3 text-left">Date</th></tr></thead>
                 <tbody className="divide-y">
                   {recentPOs.map((po) => (
                     <tr key={po.id} className="hover:bg-gray-50">
