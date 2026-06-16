@@ -7,10 +7,19 @@ const secret = new TextEncoder().encode(
 );
 
 export interface SessionUser {
-  id: string;
+  id: string;          // local Employee.id (cuid)
+  hrmsId: string;
   name: string;
   email: string;
-  role?: string;
+  department?: string;
+  section?: string;
+  designation?: string;
+  workLocation?: string;
+  reportingManagerId?: string;
+  reportingManagerName?: string;
+  employmentStatus: string;
+  procurementRole?: string;
+  role: string;        // effective procurement role
 }
 
 export async function createSession(user: SessionUser) {
@@ -54,4 +63,26 @@ export async function getSessionFromToken(token: string): Promise<SessionUser | 
   } catch {
     return null;
   }
+}
+
+// Role hierarchy for UI checks
+export const ROLES = {
+  ADMIN: "ADMIN",
+  MANAGEMENT: "MANAGEMENT",
+  PROCUREMENT: "PROCUREMENT",
+  FINANCE: "FINANCE",
+  STOREKEEPER: "STOREKEEPER",
+  DEPARTMENT_HEAD: "DEPARTMENT_HEAD",
+  MANAGER: "MANAGER",
+  REQUESTER: "REQUESTER",
+} as const;
+
+export type ProcurementRole = typeof ROLES[keyof typeof ROLES];
+
+export function hasRole(user: SessionUser, ...roles: string[]) {
+  return roles.includes(user.role);
+}
+
+export function canApprove(user: SessionUser) {
+  return hasRole(user, ROLES.ADMIN, ROLES.MANAGEMENT, ROLES.PROCUREMENT, ROLES.FINANCE, ROLES.DEPARTMENT_HEAD, ROLES.MANAGER);
 }

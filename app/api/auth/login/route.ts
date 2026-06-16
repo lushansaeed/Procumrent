@@ -1,54 +1,39 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createSession } from "@/lib/auth";
+import { db } from "@/lib/db";
 
 const HRMS_BASE = (process.env.HRMS_API_URL ?? "https://hrms.vahmaafushi.com").replace(/\/api$/, "");
 
 function extractCookies(headers: Headers): string[] {
-  // getSetCookie returns each Set-Cookie header separately (Node 18+)
-  if (typeof headers.getSetCookie === "function") {
-    return headers.getSetCookie();
-  }
+  if (typeof headers.getSetCookie === "function") return headers.getSetCookie();
   const raw = headers.get("set-cookie");
   return raw ? raw.split(/,(?=[^ ])/) : [];
 }
 
 function cookiesToHeader(cookieStrings: string[]): string {
-  // Parse name=value from each Set-Cookie string, join as Cookie header
-  return cookieStrings
-    .map((c) => c.split(";")[0].trim())
-    .filter(Boolean)
-    .join("; ");
+  return cookieStrings.map((c) => c.split(";")[0].trim()).filter(Boolean).join("; ");
 }
 
 export async function POST(request: NextRequest) {
   const { email, password } = await request.json();
-
-  if (!email || !password) {
+  if (!email || !password)
     return NextResponse.json({ error: "Email and password are required" }, { status: 400 });
-  }
 
   try {
-    // Step 1: get CSRF token
+    // 1. CSRF token
     const csrfRes = await fetch(`${HRMS_BASE}/api/auth/csrf`, {
       headers: { Accept: "application/json" },
     });
-
-    if (!csrfRes.ok) {
-      console.error("CSRF fetch failed:", csrfRes.status, await csrfRes.text());
+    if (!csrfRes.ok)
       return NextResponse.json({ error: "Could not reach HRMS server" }, { status: 502 });
-    }
 
     const { csrfToken } = await csrfRes.json();
     const csrfCookies = extractCookies(csrfRes.headers);
 
-    // Step 2: sign in with credentials
+    // 2. Credentials callback
     const formBody = new URLSearchParams({
-      csrfToken,
-      email,
-      password,
-      redirect: "false",
-      json: "true",
-      callbackUrl: HRMS_BASE,
+      csrfToken, email, password,
+      redirect: "false", json: "true", callbackUrl: HRMS_BASE,
     });
 
     const signInRes = await fetch(`${HRMS_BASE}/api/auth/callback/credentials`, {
@@ -67,43 +52,78 @@ export async function POST(request: NextRequest) {
     const signInCookies = extractCookies(signInRes.headers);
     const allCookies = cookiesToHeader([...csrfCookies, ...signInCookies]);
 
-    // Check for error in redirect URL (NextAuth signals failure via ?error=)
-    const location = signInRes.headers.get("location") ?? "";
     let resultUrl = "";
-    try {
-      const json = await signInRes.json();
-      resultUrl = json?.url ?? "";
-    } catch {
-      resultUrl = location;
-    }
+    try { resultUrl = (await signInRes.json())?.url ?? ""; } catch { /* redirect response */ }
+    const location = signInRes.headers.get("location") ?? "";
+    if (!resultUrl) resultUrl = location;
 
-    if (resultUrl.includes("error=") || (!resultUrl && signInRes.status >= 400)) {
+    if (resultUrl.includes("error=") || (!resultUrl && signInRes.status >= 400))
       return NextResponse.json({ error: "Invalid email or password" }, { status: 401 });
+
+    // 3. Fetch HRMS session
+    const sessionRes = await fetch(`${HRMS_BASE}/api/auth/session`, {
+      headers: { Accept: "application/json", Cookie: allCookies },
+    });
+    const sessionData = await sessionRes.json().catch(() => ({}));
+    const hrmsUser = sessionData?.user ?? null;
+
+    if (!hrmsUser?.email)
+      return NextResponse.json({ error: "Login failed — could not retrieve user" }, { status: 401 });
+
+    // 4. Try to fetch extended employee profile from HRMS
+    let profile: Record<string, string> = {};
+    const profileRes = await fetch(`${HRMS_BASE}/api/employees/me`, {
+      headers: { Accept: "application/json", Cookie: allCookies },
+    }).catch(() => null);
+    if (profileRes?.ok) {
+      const pd = await profileRes.json().catch(() => ({}));
+      profile = pd?.data ?? pd?.employee ?? pd ?? {};
     }
 
-    // Step 3: fetch session to get user details
-    const sessionRes = await fetch(`${HRMS_BASE}/api/auth/session`, {
-      headers: {
-        Accept: "application/json",
-        Cookie: allCookies,
-      },
+    // 5. Upsert employee in local DB
+    const hrmsId = String(hrmsUser.id ?? hrmsUser.employeeId ?? hrmsUser.email);
+    const employeeData = {
+      hrmsId,
+      employeeCode: profile.employeeCode ?? profile.code ?? hrmsUser.employeeId ?? undefined,
+      name: hrmsUser.name ?? profile.name ?? email.split("@")[0],
+      email: hrmsUser.email,
+      department: profile.department ?? hrmsUser.department ?? undefined,
+      section: profile.section ?? undefined,
+      designation: profile.designation ?? profile.position ?? hrmsUser.role ?? undefined,
+      workLocation: profile.workLocation ?? profile.location ?? undefined,
+      reportingManagerId: profile.reportingManagerId ?? undefined,
+      reportingManagerName: profile.reportingManagerName ?? profile.reportingManager ?? undefined,
+      employmentStatus: profile.employmentStatus ?? hrmsUser.employmentStatus ?? "ACTIVE",
+      lastSyncedAt: new Date(),
+    };
+
+    const employee = await db.employee.upsert({
+      where: { hrmsId },
+      update: employeeData,
+      create: employeeData,
     });
 
-    const sessionData = await sessionRes.json().catch(() => ({}));
-    console.log("HRMS session response:", JSON.stringify(sessionData));
+    // Block inactive employees
+    if (employee.employmentStatus !== "ACTIVE")
+      return NextResponse.json({ error: "Your account is inactive. Please contact HR." }, { status: 403 });
 
-    const user = sessionData?.user ?? null;
-
-    if (!user?.email) {
-      console.error("No user in session. allCookies:", allCookies, "sessionData:", sessionData);
-      return NextResponse.json({ error: "Login failed — could not retrieve user" }, { status: 401 });
-    }
+    // 6. Determine effective procurement role
+    const procurementRole = employee.procurementRole ?? "REQUESTER";
 
     await createSession({
-      id: String(user.id ?? user.employeeId ?? user.email),
-      name: user.name ?? user.email.split("@")[0],
-      email: user.email,
-      role: user.role ?? user.position ?? "staff",
+      id: employee.id,
+      hrmsId: employee.hrmsId,
+      name: employee.name,
+      email: employee.email,
+      department: employee.department ?? undefined,
+      section: employee.section ?? undefined,
+      designation: employee.designation ?? undefined,
+      workLocation: employee.workLocation ?? undefined,
+      reportingManagerId: employee.reportingManagerId ?? undefined,
+      reportingManagerName: employee.reportingManagerName ?? undefined,
+      employmentStatus: employee.employmentStatus,
+      procurementRole: employee.procurementRole ?? undefined,
+      role: procurementRole,
     });
 
     return NextResponse.json({ ok: true });
