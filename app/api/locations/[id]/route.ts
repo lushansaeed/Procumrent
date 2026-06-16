@@ -10,9 +10,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     const location = await db.location.findUnique({ where: { id } });
     if (!location) return NextResponse.json({ error: "Not found" }, { status: 404 });
     return NextResponse.json(location);
-  } catch {
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
-  }
+  } catch { return NextResponse.json({ error: "Internal server error" }, { status: 500 }); }
 }
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -24,9 +22,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     const body = await req.json();
     const location = await db.location.update({ where: { id }, data: body });
     return NextResponse.json(location);
-  } catch {
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
-  }
+  } catch { return NextResponse.json({ error: "Internal server error" }, { status: 500 }); }
 }
 
 export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -37,7 +33,5 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
     const { id } = await params;
     await db.location.update({ where: { id }, data: { isActive: false } });
     return NextResponse.json({ success: true });
-  } catch {
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
-  }
+  } catch { return NextResponse.json({ error: "Internal server error" }, { status: 500 }); }
 }

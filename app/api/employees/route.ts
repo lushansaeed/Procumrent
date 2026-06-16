@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
 import { db } from "@/lib/db";
 
@@ -9,7 +9,5 @@ export async function GET() {
   try {
     const employees = await db.employee.findMany({ orderBy: { name: "asc" } });
     return NextResponse.json(employees);
-  } catch {
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
-  }
+  } catch { return NextResponse.json({ error: "Internal server error" }, { status: 500 }); }
 }

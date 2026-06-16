@@ -12,26 +12,15 @@ export async function GET(req: NextRequest) {
     const userId = searchParams.get("userId");
     const from = searchParams.get("from");
     const to = searchParams.get("to");
-
     const logs = await db.auditLog.findMany({
       where: {
         ...(module ? { module } : {}),
         ...(userId ? { userId } : {}),
-        ...(from || to
-          ? {
-              createdAt: {
-                ...(from ? { gte: new Date(from) } : {}),
-                ...(to ? { lte: new Date(to) } : {}),
-              },
-            }
-          : {}),
+        ...(from || to ? { createdAt: { ...(from ? { gte: new Date(from) } : {}), ...(to ? { lte: new Date(to) } : {}) } } : {}),
       },
       orderBy: { createdAt: "desc" },
       take: 200,
     });
-
     return NextResponse.json(logs);
-  } catch {
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
-  }
+  } catch { return NextResponse.json({ error: "Internal server error" }, { status: 500 }); }
 }

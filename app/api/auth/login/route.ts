@@ -11,40 +11,24 @@ function extractCookies(headers: Headers): string[] {
 }
 
 function cookiesToHeader(cookieStrings: string[]): string {
-  return cookieStrings.map((c) => c.split(";")[0].trim()).filter(Boolean).join("; ");
+  return cookieStrings.map(c => c.split(";")[0].trim()).filter(Boolean).join("; ");
 }
 
 export async function POST(request: NextRequest) {
   const { email, password } = await request.json();
-  if (!email || !password)
-    return NextResponse.json({ error: "Email and password are required" }, { status: 400 });
+  if (!email || !password) return NextResponse.json({ error: "Email and password are required" }, { status: 400 });
 
   try {
-    // 1. CSRF token
-    const csrfRes = await fetch(`${HRMS_BASE}/api/auth/csrf`, {
-      headers: { Accept: "application/json" },
-    });
-    if (!csrfRes.ok)
-      return NextResponse.json({ error: "Could not reach HRMS server" }, { status: 502 });
+    const csrfRes = await fetch(`${HRMS_BASE}/api/auth/csrf`, { headers: { Accept: "application/json" } });
+    if (!csrfRes.ok) return NextResponse.json({ error: "Could not reach HRMS server" }, { status: 502 });
 
     const { csrfToken } = await csrfRes.json();
     const csrfCookies = extractCookies(csrfRes.headers);
 
-    // 2. Credentials callback
-    const formBody = new URLSearchParams({
-      csrfToken, email, password,
-      redirect: "false", json: "true", callbackUrl: HRMS_BASE,
-    });
-
+    const formBody = new URLSearchParams({ csrfToken, email, password, redirect: "false", json: "true", callbackUrl: HRMS_BASE });
     const signInRes = await fetch(`${HRMS_BASE}/api/auth/callback/credentials`, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/x-www-form-urlencoded",
-        Accept: "application/json",
-        Cookie: cookiesToHeader(csrfCookies),
-        Origin: HRMS_BASE,
-        Referer: `${HRMS_BASE}/login`,
-      },
+      headers: { "Content-Type": "application/x-www-form-urlencoded", Accept: "application/json", Cookie: cookiesToHeader(csrfCookies), Origin: HRMS_BASE, Referer: `${HRMS_BASE}/login` },
       body: formBody.toString(),
       redirect: "manual",
     });
@@ -60,27 +44,16 @@ export async function POST(request: NextRequest) {
     if (resultUrl.includes("error=") || (!resultUrl && signInRes.status >= 400))
       return NextResponse.json({ error: "Invalid email or password" }, { status: 401 });
 
-    // 3. Fetch HRMS session
-    const sessionRes = await fetch(`${HRMS_BASE}/api/auth/session`, {
-      headers: { Accept: "application/json", Cookie: allCookies },
-    });
+    const sessionRes = await fetch(`${HRMS_BASE}/api/auth/session`, { headers: { Accept: "application/json", Cookie: allCookies } });
     const sessionData = await sessionRes.json().catch(() => ({}));
     const hrmsUser = sessionData?.user ?? null;
 
-    if (!hrmsUser?.email)
-      return NextResponse.json({ error: "Login failed — could not retrieve user" }, { status: 401 });
+    if (!hrmsUser?.email) return NextResponse.json({ error: "Login failed — could not retrieve user" }, { status: 401 });
 
-    // 4. Try to fetch extended employee profile from HRMS
     let profile: Record<string, string> = {};
-    const profileRes = await fetch(`${HRMS_BASE}/api/employees/me`, {
-      headers: { Accept: "application/json", Cookie: allCookies },
-    }).catch(() => null);
-    if (profileRes?.ok) {
-      const pd = await profileRes.json().catch(() => ({}));
-      profile = pd?.data ?? pd?.employee ?? pd ?? {};
-    }
+    const profileRes = await fetch(`${HRMS_BASE}/api/employees/me`, { headers: { Accept: "application/json", Cookie: allCookies } }).catch(() => null);
+    if (profileRes?.ok) { const pd = await profileRes.json().catch(() => ({})); profile = pd?.data ?? pd?.employee ?? pd ?? {}; }
 
-    // 5. Upsert employee in local DB
     const hrmsId = String(hrmsUser.id ?? hrmsUser.employeeId ?? hrmsUser.email);
     const employeeData = {
       hrmsId,
@@ -97,17 +70,11 @@ export async function POST(request: NextRequest) {
       lastSyncedAt: new Date(),
     };
 
-    const employee = await db.employee.upsert({
-      where: { hrmsId },
-      update: employeeData,
-      create: employeeData,
-    });
+    const employee = await db.employee.upsert({ where: { hrmsId }, update: employeeData, create: employeeData });
 
-    // Block inactive employees
     if (employee.employmentStatus !== "ACTIVE")
       return NextResponse.json({ error: "Your account is inactive. Please contact HR." }, { status: 403 });
 
-    // 6. Determine effective procurement role
     const procurementRole = employee.procurementRole ?? "REQUESTER";
 
     await createSession({

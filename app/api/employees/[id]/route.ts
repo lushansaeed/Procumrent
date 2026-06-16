@@ -10,9 +10,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     const employee = await db.employee.findUnique({ where: { id } });
     if (!employee) return NextResponse.json({ error: "Not found" }, { status: 404 });
     return NextResponse.json(employee);
-  } catch {
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
-  }
+  } catch { return NextResponse.json({ error: "Internal server error" }, { status: 500 }); }
 }
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -22,12 +20,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   try {
     const { id } = await params;
     const body = await req.json();
-    const employee = await db.employee.update({
-      where: { id },
-      data: { procurementRole: body.procurementRole },
-    });
+    const employee = await db.employee.update({ where: { id }, data: { procurementRole: body.procurementRole } });
     return NextResponse.json(employee);
-  } catch {
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
-  }
+  } catch { return NextResponse.json({ error: "Internal server error" }, { status: 500 }); }
 }

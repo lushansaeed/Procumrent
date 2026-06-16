@@ -5,7 +5,6 @@ import { db } from "@/lib/db";
 export async function GET() {
   const user = await getSession();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
   const notifications = await db.notification.findMany({
     where: { employeeId: user.id },
     orderBy: [{ isRead: "asc" }, { createdAt: "desc" }],
@@ -17,10 +16,6 @@ export async function GET() {
 export async function PATCH() {
   const user = await getSession();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
-  await db.notification.updateMany({
-    where: { employeeId: user.id, isRead: false },
-    data: { isRead: true },
-  });
+  await db.notification.updateMany({ where: { employeeId: user.id, isRead: false }, data: { isRead: true } });
   return NextResponse.json({ ok: true });
 }

@@ -6,10 +6,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   const user = await getSession();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const { id } = await params;
-  const po = await db.purchaseOrder.findUnique({
-    where: { id },
-    include: { supplier: true, items: true, grns: { include: { items: true } } },
-  });
+  const po = await db.purchaseOrder.findUnique({ where: { id }, include: { supplier: true, items: true, grns: { include: { items: true } } } });
   if (!po) return NextResponse.json({ error: "Not found" }, { status: 404 });
   return NextResponse.json(po);
 }

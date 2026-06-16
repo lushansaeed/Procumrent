@@ -8,9 +8,7 @@ export async function GET() {
   try {
     const categories = await db.itemCategory.findMany({ where: { isActive: true }, orderBy: { name: "asc" } });
     return NextResponse.json(categories);
-  } catch {
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
-  }
+  } catch { return NextResponse.json({ error: "Internal server error" }, { status: 500 }); }
 }
 
 export async function POST(req: NextRequest) {
@@ -19,11 +17,7 @@ export async function POST(req: NextRequest) {
   if (session.role !== "ADMIN") return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   try {
     const body = await req.json();
-    const category = await db.itemCategory.create({
-      data: { code: body.code, name: body.name, description: body.description, isActive: true },
-    });
+    const category = await db.itemCategory.create({ data: { code: body.code, name: body.name, description: body.description, isActive: true } });
     return NextResponse.json(category, { status: 201 });
-  } catch {
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
-  }
+  } catch { return NextResponse.json({ error: "Internal server error" }, { status: 500 }); }
 }
