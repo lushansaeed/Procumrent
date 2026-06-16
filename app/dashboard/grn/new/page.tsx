@@ -13,7 +13,19 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
-interface PO { id: string; poNumber: string; supplier: { name: string } }
+interface PO {
+  id: string;
+  poNumber: string;
+  supplier: { name: string };
+  items: Array<{
+    id: string;
+    itemId: string | null;
+    itemName: string;
+    quantity: number;
+    unit: string;
+    receivedQty: number;
+  }>;
+}
 
 const schema = z.object({
   poId: z.string().min(1, "PO required"),
@@ -21,7 +33,9 @@ const schema = z.object({
   deliveryNote: z.string().optional(),
   invoiceNumber: z.string().optional(),
   remarks: z.string().optional(),
-  items: z.array(z.object({
+    items: z.array(z.object({
+    poItemId: z.string().optional(),
+    itemId: z.string().optional().nullable(),
     itemName: z.string().min(1, "Item name required"),
     orderedQty: z.coerce.number().min(1),
     receivedQty: z.coerce.number().min(0),
@@ -47,11 +61,29 @@ export default function NewGRNPage() {
   const { fields, append, remove } = useFieldArray({ control, name: "items" });
 
   useEffect(() => {
-    fetch("/api/purchase-orders?status=APPROVED,SENT")
+    fetch("/api/purchase-orders?status=APPROVED,SENT,PARTIALLY_RECEIVED")
       .then(r => r.json())
       .then(setPOs)
       .catch(() => {});
   }, []);
+
+  function selectPO(poId: string) {
+    setValue("poId", poId);
+    const po = pos.find((order) => order.id === poId);
+    if (!po) return;
+    setValue("items", po.items.map((item) => {
+      const remainingQty = Math.max(item.quantity - item.receivedQty, 0);
+      return {
+        poItemId: item.id,
+        itemId: item.itemId,
+        itemName: item.itemName,
+        orderedQty: item.quantity,
+        receivedQty: remainingQty || item.quantity,
+        rejectedQty: 0,
+        condition: "GOOD",
+      };
+    }));
+  }
 
   const onSubmit = async (data: FormData) => {
     const res = await fetch("/api/grn", {
@@ -81,7 +113,7 @@ export default function NewGRNPage() {
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1.5">
                 <Label>Purchase Order *</Label>
-                <Select onValueChange={(v) => setValue("poId", v)}>
+                <Select onValueChange={selectPO}>
                   <SelectTrigger><SelectValue placeholder="Select PO" /></SelectTrigger>
                   <SelectContent>
                     {pos.length === 0 ? (
@@ -126,6 +158,8 @@ export default function NewGRNPage() {
           <CardContent className="space-y-3">
             {fields.map((field, i) => (
               <div key={field.id} className="grid grid-cols-6 gap-2 items-end border-b pb-3">
+                <input type="hidden" {...register(`items.${i}.poItemId`)} />
+                <input type="hidden" {...register(`items.${i}.itemId`)} />
                 <div className="col-span-2 space-y-1">
                   <Label className="text-xs">Item Name *</Label>
                   <Input {...register(`items.${i}.itemName`)} placeholder="Item description" />

@@ -12,6 +12,7 @@ import {
   FileSearch,
   ShoppingCart,
   PackageCheck,
+  ClipboardCheck,
   Package,
   ArrowLeftRight,
   Monitor,
@@ -139,6 +140,7 @@ export function Sidebar({ user }: SidebarProps) {
               icon={ShoppingCart}
             />
             <NavItem href="/dashboard/grn" label="Goods Received" icon={PackageCheck} />
+            <NavItem href="/dashboard/delivery" label="Delivery Confirmation" icon={ClipboardCheck} />
           </>
         )}
 
@@ -146,6 +148,9 @@ export function Sidebar({ user }: SidebarProps) {
           <>
             <SectionLabel label="Inventory" />
             <NavItem href="/dashboard/stock" label="Stock / Inventory" icon={Package} />
+            {!showProcurement && (
+              <NavItem href="/dashboard/delivery" label="Delivery Confirmation" icon={ClipboardCheck} />
+            )}
             <NavItem
               href="/dashboard/transfers"
               label="Stock Transfers"

@@ -2,10 +2,17 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
 import { db } from "@/lib/db";
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   const user = await getSession();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  const orders = await db.purchaseOrder.findMany({ include: { supplier: true, items: true }, orderBy: { createdAt: "desc" } });
+  const { searchParams } = new URL(request.url);
+  const status = searchParams.get("status");
+  const statuses = status?.split(",").filter(Boolean);
+  const orders = await db.purchaseOrder.findMany({
+    where: statuses?.length ? { status: { in: statuses } } : undefined,
+    include: { supplier: true, items: true },
+    orderBy: { createdAt: "desc" },
+  });
   return NextResponse.json(orders);
 }
 

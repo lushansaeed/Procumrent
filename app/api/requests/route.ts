@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { createNotification } from "@/lib/notifications";
+import { buildApprovalSteps, requestStatusForApprovalRole } from "@/lib/workflow";
 
 export async function GET(req: NextRequest) {
   const session = await getSession();
@@ -65,6 +66,15 @@ export async function POST(req: NextRequest) {
       estimatedPrice: number;
     }> = body.items ?? [];
     const estimatedTotal = items.reduce((sum: number, i) => sum + (i.quantity * i.estimatedPrice), 0);
+    const requestType = body.requestType ?? "PURCHASE";
+    const priority = body.priority ?? "NORMAL";
+    const approvalSteps = await buildApprovalSteps({
+      requestType,
+      priority,
+      department: session.department,
+      estimatedTotal,
+    });
+    const initialStatus = requestStatusForApprovalRole(approvalSteps[0]?.role ?? "REPORTING_MANAGER");
 
     const request = await db.purchaseRequest.create({
       data: {
@@ -79,12 +89,12 @@ export async function POST(req: NextRequest) {
         reportingManagerId: session.reportingManagerId,
         reportingManagerName: session.reportingManagerName,
         deliveryLocationId: body.deliveryLocationId,
-        requestType: body.requestType ?? "PURCHASE",
-        priority: body.priority ?? "NORMAL",
+        requestType,
+        priority,
         requiredDate: body.requiredDate ? new Date(body.requiredDate) : null,
         purpose: body.purpose,
         remarks: body.remarks,
-        status: "SUBMITTED",
+        status: initialStatus,
         estimatedTotal,
         items: {
           create: items.map((item) => ({
@@ -99,7 +109,7 @@ export async function POST(req: NextRequest) {
         },
         statusHistory: {
           create: {
-            status: "SUBMITTED",
+            status: initialStatus,
             changedBy: session.id,
             changedByName: session.name,
             comment: "Request submitted",
@@ -108,16 +118,6 @@ export async function POST(req: NextRequest) {
       },
       include: { items: true, statusHistory: true },
     });
-
-    // Create approval steps
-    const approvalSteps: Array<{ step: number; role: string; label: string }> = [];
-    approvalSteps.push({ step: 1, role: "REPORTING_MANAGER", label: "Reporting Manager Approval" });
-    if (body.requestType === "PURCHASE" || !body.requestType) {
-      approvalSteps.push({ step: 2, role: "PROCUREMENT", label: "Procurement Review" });
-    }
-    if (estimatedTotal > 10000) {
-      approvalSteps.push({ step: approvalSteps.length + 1, role: "FINANCE", label: "Finance Approval" });
-    }
 
     await db.requestApproval.createMany({
       data: approvalSteps.map((s) => ({

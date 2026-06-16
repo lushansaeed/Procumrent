@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { createNotification } from "@/lib/notifications";
+import { canActOnApproval, requestStatusForApprovalRole } from "@/lib/workflow";
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await getSession();
@@ -22,17 +23,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     if (!request) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
     // Find pending approval step matching user's role
-    let approvalStep = request.approvals.find(
-      (a) => a.status === "PENDING" && a.role === session.role
+    let approvalStep = request.approvals.find((a) =>
+      a.status === "PENDING" && canActOnApproval(a.role, session.role)
     );
-
-    // For REPORTING_MANAGER step, also check if this user is the reporting manager
-    if (!approvalStep && session.role === "MANAGER") {
-      approvalStep = request.approvals.find(
-        (a) => a.status === "PENDING" && a.role === "REPORTING_MANAGER" &&
-          request.reportingManagerId === session.hrmsId
-      );
-    }
 
     if (!approvalStep) {
       return NextResponse.json({ error: "No pending approval step found for your role" }, { status: 403 });
@@ -78,9 +71,11 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         }
       } else {
         // Find next pending step and notify
-        const nextStep = updatedApprovals.find((a) => a.status === "PENDING");
+        const nextStep = updatedApprovals
+          .sort((a, b) => a.step - b.step)
+          .find((a) => a.status === "PENDING");
         if (nextStep) {
-          newRequestStatus = "PENDING_APPROVAL";
+          newRequestStatus = requestStatusForApprovalRole(nextStep.role);
         }
       }
     } else if (status === "REJECTED") {

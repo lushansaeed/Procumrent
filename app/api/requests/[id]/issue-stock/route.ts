@@ -64,12 +64,12 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       );
     }
 
-    await db.purchaseRequest.update({ where: { id }, data: { status: "DELIVERED" } });
+    await db.purchaseRequest.update({ where: { id }, data: { status: "IN_TRANSIT" } });
     await db.requestStatusHistory.create({
       data: {
         requestId: id,
-        status: "DELIVERED",
-        comment: `Stock issued: ${issueNumber}`,
+        status: "IN_TRANSIT",
+        comment: `Stock issued and awaiting receiver confirmation: ${issueNumber}`,
         changedBy: session.id,
         changedByName: session.name,
       },
