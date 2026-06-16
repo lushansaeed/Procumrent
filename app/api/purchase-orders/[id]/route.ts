@@ -8,7 +8,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   const { id } = await params;
   const po = await db.purchaseOrder.findUnique({
     where: { id },
-    include: { supplier: true, items: true, requisition: { include: { items: true } } },
+    include: { supplier: true, items: true, grns: { include: { items: true } } },
   });
   if (!po) return NextResponse.json({ error: "Not found" }, { status: 404 });
   return NextResponse.json(po);

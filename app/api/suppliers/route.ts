@@ -19,8 +19,10 @@ export async function POST(request: NextRequest) {
 
   if (!name) return NextResponse.json({ error: "Name is required" }, { status: 400 });
 
+  const count = await db.supplier.count();
+  const code = `SUP-${String(count + 1).padStart(4, "0")}`;
   const supplier = await db.supplier.create({
-    data: { name, email, phone, address, contactPerson },
+    data: { code, name, email, phone, address, contactPerson, ...body },
   });
 
   return NextResponse.json(supplier, { status: 201 });

@@ -1,63 +1,61 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { generatePONumber } from "@/lib/utils";
 
 export async function GET() {
   const user = await getSession();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const orders = await db.purchaseOrder.findMany({
-    include: { supplier: true, items: true, requisition: true },
+    include: { supplier: true, items: true },
     orderBy: { createdAt: "desc" },
   });
-
   return NextResponse.json(orders);
 }
 
 export async function POST(request: NextRequest) {
   const user = await getSession();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!["ADMIN", "PROCUREMENT"].includes(user.role))
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const body = await request.json();
-  const { supplierId, requisitionId, items, deliveryDate, terms } = body;
+  const { supplierId, requestId, items, deliveryDate, paymentTerms, notes, tax } = body;
 
-  if (!supplierId || !items?.length) {
+  if (!supplierId || !items?.length)
     return NextResponse.json({ error: "Supplier and items are required" }, { status: 400 });
-  }
 
   const count = await db.purchaseOrder.count();
-  const poNumber = generatePONumber(count);
+  const year = new Date().getFullYear();
+  const poNumber = `PO-${year}-${String(count + 1).padStart(4, "0")}`;
 
-  const totalAmount = items.reduce(
-    (sum: number, item: { quantity: number; unitPrice: number }) =>
-      sum + item.quantity * item.unitPrice,
-    0
+  const subtotal = items.reduce(
+    (sum: number, item: { quantity: number; unitPrice: number }) => sum + item.quantity * item.unitPrice, 0
   );
+  const taxAmount = tax ?? 0;
 
   const po = await db.purchaseOrder.create({
     data: {
       poNumber,
       supplierId,
-      requisitionId: requisitionId ?? null,
-      issuedBy: user.id,
+      requestId: requestId ?? null,
+      issuedById: user.id,
       issuedByName: user.name,
-      totalAmount,
+      subtotal,
+      tax: taxAmount,
+      totalAmount: subtotal + taxAmount,
       deliveryDate: deliveryDate ? new Date(deliveryDate) : null,
-      terms,
+      paymentTerms,
+      notes,
       items: {
-        create: items.map((item: {
-          itemName: string;
-          description?: string;
-          quantity: number;
-          unit?: string;
-          unitPrice: number;
-        }) => ({
+        create: items.map((item: { itemId?: string; itemName: string; description?: string; quantity: number; unit?: string; unitPrice: number; tax?: number }) => ({
+          itemId: item.itemId,
           itemName: item.itemName,
           description: item.description,
           quantity: item.quantity,
           unit: item.unit ?? "pcs",
           unitPrice: item.unitPrice,
+          tax: item.tax ?? 0,
           totalPrice: item.quantity * item.unitPrice,
         })),
       },
@@ -65,11 +63,10 @@ export async function POST(request: NextRequest) {
     include: { supplier: true, items: true },
   });
 
-  // Update PR status if linked
-  if (requisitionId) {
-    await db.purchaseRequisition.update({
-      where: { id: requisitionId },
-      data: { status: "CONVERTED" },
+  if (requestId) {
+    await db.purchaseRequest.update({
+      where: { id: requestId },
+      data: { status: "PO_CREATED" },
     });
   }
 
