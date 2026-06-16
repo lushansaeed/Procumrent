@@ -1,0 +1,93 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Supplier {
+  id            String   @id @default(cuid())
+  name          String
+  email         String?
+  phone         String?
+  address       String?
+  contactPerson String?
+  status        String   @default("ACTIVE")
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  purchaseOrders PurchaseOrder[]
+}
+
+model PurchaseRequisition {
+  id              String   @id @default(cuid())
+  prNumber        String   @unique
+  title           String
+  description     String?
+  requestedBy     String
+  requestedByName String
+  department      String?
+  priority        String   @default("MEDIUM")
+  status          String   @default("DRAFT")
+  totalAmount     Float    @default(0)
+  items           RequisitionItem[]
+  approvals       Approval[]
+  purchaseOrder   PurchaseOrder?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model RequisitionItem {
+  id              String   @id @default(cuid())
+  requisitionId   String
+  requisition     PurchaseRequisition @relation(fields: [requisitionId], references: [id], onDelete: Cascade)
+  itemName        String
+  description     String?
+  quantity        Float
+  unit            String   @default("pcs")
+  estimatedPrice  Float
+  totalPrice      Float
+}
+
+model PurchaseOrder {
+  id              String   @id @default(cuid())
+  poNumber        String   @unique
+  requisitionId   String?  @unique
+  requisition     PurchaseRequisition? @relation(fields: [requisitionId], references: [id])
+  supplierId      String
+  supplier        Supplier @relation(fields: [supplierId], references: [id])
+  issuedBy        String
+  issuedByName    String
+  status          String   @default("DRAFT")
+  totalAmount     Float    @default(0)
+  deliveryDate    DateTime?
+  terms           String?
+  items           POItem[]
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model POItem {
+  id          String   @id @default(cuid())
+  orderId     String
+  order       PurchaseOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  itemName    String
+  description String?
+  quantity    Float
+  unit        String   @default("pcs")
+  unitPrice   Float
+  totalPrice  Float
+}
+
+model Approval {
+  id              String   @id @default(cuid())
+  requisitionId   String
+  requisition     PurchaseRequisition @relation(fields: [requisitionId], references: [id], onDelete: Cascade)
+  approverId      String
+  approverName    String
+  status          String   @default("PENDING")
+  comments        String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
