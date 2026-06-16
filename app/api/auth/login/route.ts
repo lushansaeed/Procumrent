@@ -48,6 +48,48 @@ function pickRecord(...values: unknown[]): UnknownRecord {
   return {};
 }
 
+function normalizeRoles(...values: unknown[]): string[] {
+  const roles = new Set<string>();
+
+  function addRole(value: unknown) {
+    if (typeof value === "string") {
+      value
+        .split(",")
+        .map((role) => role.trim())
+        .filter(Boolean)
+        .forEach((role) => roles.add(role));
+      return;
+    }
+    if (typeof value === "number") {
+      roles.add(String(value));
+      return;
+    }
+
+    const role = pickText(value);
+    if (role) roles.add(role);
+  }
+
+  for (const value of values) {
+    if (Array.isArray(value)) {
+      value.forEach(addRole);
+    } else {
+      addRole(value);
+    }
+  }
+
+  return [...roles];
+}
+
+function parseJsonArray(value: string | null | undefined): string[] {
+  if (!value) return [];
+  try {
+    const parsed = JSON.parse(value);
+    return Array.isArray(parsed) ? parsed.filter((item) => typeof item === "string" && item.trim()) : [];
+  } catch {
+    return [];
+  }
+}
+
 async function fetchHrmsProfile(baseUrl: string, cookieHeader: string, hrmsUser: UnknownRecord) {
   const employeeId = pickText(hrmsUser.employeeId, hrmsUser.employeeCode, hrmsUser.id);
   const endpoints = [
@@ -142,6 +184,28 @@ export async function POST(request: NextRequest) {
       hrmsUser.manager,
       hrmsUser.supervisor
     );
+    const departmentManager = pickRecord(
+      profile.departmentManager,
+      profile.departmentHead,
+      profile.department_head,
+      profile.deptManager,
+      hrmsUser.departmentManager,
+      hrmsUser.departmentHead,
+      hrmsUser.department_head,
+      hrmsUser.deptManager
+    );
+    const company = pickRecord(profile.company, hrmsUser.company);
+    const unit = pickRecord(profile.unit, profile.businessUnit, hrmsUser.unit, hrmsUser.businessUnit);
+    const hrmsRoles = normalizeRoles(
+      profile.roles,
+      profile.role,
+      profile.userRoles,
+      profile.permissions,
+      hrmsUser.roles,
+      hrmsUser.role,
+      hrmsUser.userRoles,
+      hrmsUser.permissions
+    );
 
     const hrmsId = pickText(profile.hrmsId, profile.employeeId, profile.id, hrmsUser.id, hrmsUser.employeeId, hrmsUser.email) ?? email;
     const employeeData = {
@@ -149,12 +213,17 @@ export async function POST(request: NextRequest) {
       employeeCode: pickText(profile.employeeCode, profile.code, profile.staffCode, profile.empCode, hrmsUser.employeeCode, hrmsUser.employeeId),
       name: pickText(profile.name, profile.fullName, profile.employeeName, hrmsUser.name, hrmsUser.fullName) ?? email.split("@")[0],
       email: pickText(profile.email, hrmsUser.email) ?? email,
+      companyId: pickText(profile.companyId, profile.companyID, profile.company_id, profile.companyCode, company.id, company.code, company.companyId, hrmsUser.companyId, hrmsUser.companyID, hrmsUser.company_id),
       department: pickText(profile.department, profile.departmentName, hrmsUser.department, hrmsUser.departmentName),
       section: pickText(profile.section, profile.sectionName, hrmsUser.section, hrmsUser.sectionName),
       designation: pickText(profile.designation, profile.designationName, profile.position, profile.jobTitle, hrmsUser.designation, hrmsUser.position, hrmsUser.role),
       workLocation: pickText(profile.workLocation, profile.location, profile.locationName, profile.branch, profile.site, hrmsUser.workLocation, hrmsUser.location, hrmsUser.locationName),
+      unit: pickText(profile.unit, profile.unitName, profile.workUnit, profile.businessUnit, unit.name, unit.code, unit.id, hrmsUser.unit, hrmsUser.unitName, hrmsUser.workUnit, hrmsUser.businessUnit),
       reportingManagerId: pickText(profile.reportingManagerId, profile.managerId, profile.supervisorId, manager.employeeId, manager.id, manager.hrmsId),
       reportingManagerName: pickText(profile.reportingManagerName, profile.managerName, profile.supervisorName, manager.name, manager.fullName),
+      departmentManagerId: pickText(profile.departmentManagerId, profile.departmentHeadId, profile.deptManagerId, departmentManager.employeeId, departmentManager.id, departmentManager.hrmsId),
+      departmentManagerName: pickText(profile.departmentManagerName, profile.departmentHeadName, profile.deptManagerName, departmentManager.name, departmentManager.fullName),
+      hrmsRoles: hrmsRoles.length > 0 ? JSON.stringify(hrmsRoles) : undefined,
       employmentStatus: (pickText(profile.employmentStatus, profile.status, hrmsUser.employmentStatus, hrmsUser.status) ?? "ACTIVE").toUpperCase(),
       lastSyncedAt: new Date(),
     };
@@ -176,14 +245,20 @@ export async function POST(request: NextRequest) {
       hrmsId: employee.hrmsId,
       name: employee.name,
       email: employee.email,
+      companyId: employee.companyId ?? undefined,
       department: employee.department ?? undefined,
       section: employee.section ?? undefined,
       designation: employee.designation ?? undefined,
       workLocation: employee.workLocation ?? undefined,
+      unit: employee.unit ?? undefined,
       reportingManagerId: employee.reportingManagerId ?? undefined,
       reportingManagerName: employee.reportingManagerName ?? undefined,
+      departmentManagerId: employee.departmentManagerId ?? undefined,
+      departmentManagerName: employee.departmentManagerName ?? undefined,
+      hrmsRoles: parseJsonArray(employee.hrmsRoles),
       employmentStatus: employee.employmentStatus,
       procurementRole: employee.procurementRole ?? undefined,
+      moduleAccess: parseJsonArray(employee.moduleAccess),
       role: procurementRole,
     });
 

@@ -20,7 +20,16 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   try {
     const { id } = await params;
     const body = await req.json();
-    const employee = await db.employee.update({ where: { id }, data: { procurementRole: body.procurementRole } });
+    const moduleAccess = Array.isArray(body.moduleAccess)
+      ? body.moduleAccess.filter((item: unknown) => typeof item === "string" && item.trim())
+      : undefined;
+    const employee = await db.employee.update({
+      where: { id },
+      data: {
+        procurementRole: typeof body.procurementRole === "string" ? body.procurementRole : null,
+        ...(moduleAccess ? { moduleAccess: JSON.stringify(moduleAccess) } : {}),
+      },
+    });
     return NextResponse.json(employee);
   } catch { return NextResponse.json({ error: "Internal server error" }, { status: 500 }); }
 }

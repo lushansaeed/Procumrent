@@ -11,14 +11,20 @@ export interface SessionUser {
   hrmsId: string;
   name: string;
   email: string;
+  companyId?: string;
   department?: string;
   section?: string;
   designation?: string;
   workLocation?: string;
+  unit?: string;
   reportingManagerId?: string;
   reportingManagerName?: string;
+  departmentManagerId?: string;
+  departmentManagerName?: string;
+  hrmsRoles?: string[];
   employmentStatus: string;
   procurementRole?: string;
+  moduleAccess?: string[];
   role: string;        // effective procurement role
 }
 
@@ -79,10 +85,41 @@ export const ROLES = {
 
 export type ProcurementRole = typeof ROLES[keyof typeof ROLES];
 
+export const MODULES = {
+  APPROVALS: "approvals",
+  PROCUREMENT: "procurement",
+  QUOTATIONS: "quotations",
+  PURCHASE_ORDERS: "purchase-orders",
+  GRN: "grn",
+  DELIVERY: "delivery",
+  STOCK: "stock",
+  TRANSFERS: "transfers",
+  ASSETS: "assets",
+  SUPPLIERS: "suppliers",
+  LOCATIONS: "locations",
+  REPORTS: "reports",
+  SETTINGS: "settings",
+} as const;
+
+export type ModuleKey = typeof MODULES[keyof typeof MODULES];
+
 export function hasRole(user: SessionUser, ...roles: string[]) {
   return roles.includes(user.role);
 }
 
+export function hasModuleAccess(user: SessionUser | null | undefined, module: ModuleKey, fallbackRoles: string[] = []) {
+  if (!user) return false;
+  if (user.role === ROLES.ADMIN) return true;
+  if (user.moduleAccess?.includes(module)) return true;
+  return fallbackRoles.includes(user.role);
+}
+
 export function canApprove(user: SessionUser) {
-  return hasRole(user, ROLES.ADMIN, ROLES.MANAGEMENT, ROLES.PROCUREMENT, ROLES.FINANCE, ROLES.DEPARTMENT_HEAD, ROLES.MANAGER);
+  return hasModuleAccess(user, MODULES.APPROVALS, [
+    ROLES.MANAGEMENT,
+    ROLES.PROCUREMENT,
+    ROLES.FINANCE,
+    ROLES.DEPARTMENT_HEAD,
+    ROLES.MANAGER,
+  ]);
 }

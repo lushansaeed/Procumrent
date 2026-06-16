@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Plus, Save, UserCog } from "lucide-react";
+import { Plus, Save, ShieldCheck, UserCog } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -15,8 +15,16 @@ type Employee = {
   id: string;
   name: string;
   email: string;
+  companyId: string | null;
   department: string | null;
+  section: string | null;
+  designation: string | null;
+  workLocation: string | null;
+  unit: string | null;
+  departmentManagerName: string | null;
+  hrmsRoles: string | null;
   procurementRole: string | null;
+  moduleAccess: string | null;
 };
 
 type ApprovalMatrix = {
@@ -48,6 +56,32 @@ const approvalRoleOptions = [
   "MANAGEMENT",
 ];
 
+const moduleOptions = [
+  { key: "approvals", label: "Approvals" },
+  { key: "procurement", label: "Procurement Processing" },
+  { key: "quotations", label: "Quotations" },
+  { key: "purchase-orders", label: "Purchase Orders" },
+  { key: "grn", label: "Goods Received" },
+  { key: "delivery", label: "Delivery Confirmation" },
+  { key: "stock", label: "Stock / Inventory" },
+  { key: "transfers", label: "Stock Transfers" },
+  { key: "assets", label: "Assets" },
+  { key: "suppliers", label: "Suppliers" },
+  { key: "locations", label: "Locations" },
+  { key: "reports", label: "Reports" },
+  { key: "settings", label: "Admin Settings" },
+];
+
+function parseList(value: string | null) {
+  if (!value) return [];
+  try {
+    const parsed = JSON.parse(value);
+    return Array.isArray(parsed) ? parsed.filter((item) => typeof item === "string") : [];
+  } catch {
+    return [];
+  }
+}
+
 export function SettingsActions({
   employees,
   approvalMatrices,
@@ -57,7 +91,8 @@ export function SettingsActions({
 }) {
   const router = useRouter();
   const [category, setCategory] = useState({ code: "", name: "", description: "" });
-  const [roleAssignment, setRoleAssignment] = useState({ employeeId: "", role: "REQUESTER" });
+  const [roleAssignment, setRoleAssignment] = useState({ employeeId: "", role: "REQUESTER", moduleAccess: [] as string[] });
+  const selectedEmployee = employees.find((employee) => employee.id === roleAssignment.employeeId);
   const [matrix, setMatrix] = useState({
     name: "",
     description: "",
@@ -92,14 +127,35 @@ export function SettingsActions({
     const res = await fetch(`/api/employees/${roleAssignment.employeeId}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ procurementRole: roleAssignment.role }),
+      body: JSON.stringify({
+        procurementRole: roleAssignment.role,
+        moduleAccess: roleAssignment.moduleAccess,
+      }),
     });
     if (!res.ok) {
       toast.error("Could not assign role");
       return;
     }
-    toast.success("Role assigned");
+    toast.success("Access updated");
     router.refresh();
+  }
+
+  function selectEmployee(employeeId: string) {
+    const employee = employees.find((item) => item.id === employeeId);
+    setRoleAssignment({
+      employeeId,
+      role: employee?.procurementRole ?? "REQUESTER",
+      moduleAccess: parseList(employee?.moduleAccess ?? null),
+    });
+  }
+
+  function toggleModule(moduleKey: string) {
+    setRoleAssignment((current) => ({
+      ...current,
+      moduleAccess: current.moduleAccess.includes(moduleKey)
+        ? current.moduleAccess.filter((item) => item !== moduleKey)
+        : [...current.moduleAccess, moduleKey],
+    }));
   }
 
   async function createMatrixRule() {
@@ -168,13 +224,13 @@ export function SettingsActions({
         <CardHeader>
           <CardTitle className="text-base flex items-center gap-2">
             <UserCog className="w-4 h-4 text-blue-600" />
-            Assign Procurement Role
+            Assign Procurement Access
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
           <div className="space-y-1.5">
             <Label>Employee</Label>
-            <Select value={roleAssignment.employeeId} onValueChange={(employeeId) => setRoleAssignment({ ...roleAssignment, employeeId })}>
+            <Select value={roleAssignment.employeeId} onValueChange={selectEmployee}>
               <SelectTrigger><SelectValue placeholder="Select HRMS employee" /></SelectTrigger>
               <SelectContent>
                 {employees.map((employee) => (
@@ -194,9 +250,49 @@ export function SettingsActions({
               </SelectContent>
             </Select>
           </div>
+          {selectedEmployee && (
+            <div className="rounded-md border bg-gray-50 p-3 text-xs text-gray-600">
+              <div className="grid grid-cols-2 gap-2">
+                {[
+                  ["Company ID", selectedEmployee.companyId],
+                  ["Department", selectedEmployee.department],
+                  ["Section", selectedEmployee.section],
+                  ["Designation", selectedEmployee.designation],
+                  ["Unit", selectedEmployee.unit],
+                  ["Work Location", selectedEmployee.workLocation],
+                  ["Department Manager", selectedEmployee.departmentManagerName],
+                  ["HRMS Roles", parseList(selectedEmployee.hrmsRoles).join(", ")],
+                ].map(([label, value]) => (
+                  <div key={label}>
+                    <p className="font-medium text-gray-500">{label}</p>
+                    <p className="mt-0.5 text-gray-800">{value || "-"}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+          <div className="space-y-2">
+            <Label className="flex items-center gap-2">
+              <ShieldCheck className="h-4 w-4 text-blue-600" />
+              Module Access
+            </Label>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 rounded-md border p-3">
+              {moduleOptions.map((module) => (
+                <label key={module.key} className="flex min-h-9 items-center gap-2 rounded border bg-white px-3 py-2 text-sm">
+                  <input
+                    type="checkbox"
+                    className="h-4 w-4 rounded border-gray-300"
+                    checked={roleAssignment.moduleAccess.includes(module.key)}
+                    onChange={() => toggleModule(module.key)}
+                  />
+                  <span className="text-gray-700">{module.label}</span>
+                </label>
+              ))}
+            </div>
+          </div>
           <Button onClick={assignRole}>
             <Save className="w-4 h-4" />
-            Assign Role
+            Save Access
           </Button>
         </CardContent>
       </Card>

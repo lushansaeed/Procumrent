@@ -7,18 +7,36 @@ import { SettingsActions } from "@/components/admin/settings-actions";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { getSession } from "@/lib/auth";
+import { MODULES, getSession, hasModuleAccess } from "@/lib/auth";
 import { db } from "@/lib/db";
+
+function parseList(value: string | null) {
+  if (!value) return [];
+  try {
+    const parsed = JSON.parse(value);
+    return Array.isArray(parsed) ? parsed.filter((item) => typeof item === "string") : [];
+  } catch {
+    return [];
+  }
+}
 
 export default async function SettingsPage() {
   const user = await getSession();
   if (!user) redirect("/login");
-  if (user.role !== "ADMIN") redirect("/dashboard");
+  if (!hasModuleAccess(user, MODULES.SETTINGS)) redirect("/dashboard");
 
   const [categories, locations, assignedEmployees, allEmployees, approvalMatrices] = await Promise.all([
     db.itemCategory.findMany({ orderBy: { name: "asc" } }),
     db.location.findMany({ orderBy: { name: "asc" } }),
-    db.employee.findMany({ where: { procurementRole: { not: null } }, orderBy: { name: "asc" } }),
+    db.employee.findMany({
+      where: {
+        OR: [
+          { procurementRole: { not: null } },
+          { moduleAccess: { not: null } },
+        ],
+      },
+      orderBy: { name: "asc" },
+    }),
     db.employee.findMany({ orderBy: { name: "asc" } }),
     db.approvalMatrix.findMany({ orderBy: { sortOrder: "asc" } }),
   ]);
@@ -95,7 +113,7 @@ export default async function SettingsPage() {
           </CardHeader>
           <CardContent>
             {assignedEmployees.length === 0 ? (
-              <p className="text-sm text-gray-400 py-4 text-center">No employees assigned procurement roles yet.</p>
+              <p className="text-sm text-gray-400 py-4 text-center">No employees assigned procurement access yet.</p>
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
@@ -103,19 +121,26 @@ export default async function SettingsPage() {
                     <tr className="border-b bg-gray-50">
                       <th className="text-left px-4 py-2 text-xs font-semibold text-gray-500 uppercase">Name</th>
                       <th className="text-left px-4 py-2 text-xs font-semibold text-gray-500 uppercase">Email</th>
+                      <th className="text-left px-4 py-2 text-xs font-semibold text-gray-500 uppercase">Company / Unit</th>
                       <th className="text-left px-4 py-2 text-xs font-semibold text-gray-500 uppercase">Department</th>
                       <th className="text-left px-4 py-2 text-xs font-semibold text-gray-500 uppercase">Role</th>
+                      <th className="text-left px-4 py-2 text-xs font-semibold text-gray-500 uppercase">Modules</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {assignedEmployees.map((employee) => (
-                      <tr key={employee.id} className="border-b hover:bg-gray-50">
-                        <td className="px-4 py-2 font-medium">{employee.name}</td>
-                        <td className="px-4 py-2 text-gray-500">{employee.email}</td>
-                        <td className="px-4 py-2 text-gray-500">{employee.department ?? "-"}</td>
-                        <td className="px-4 py-2"><Badge className="bg-purple-50 text-purple-700">{employee.procurementRole}</Badge></td>
-                      </tr>
-                    ))}
+                    {assignedEmployees.map((employee) => {
+                      const modules = parseList(employee.moduleAccess);
+                      return (
+                        <tr key={employee.id} className="border-b hover:bg-gray-50">
+                          <td className="px-4 py-2 font-medium">{employee.name}</td>
+                          <td className="px-4 py-2 text-gray-500">{employee.email}</td>
+                          <td className="px-4 py-2 text-gray-500">{[employee.companyId, employee.unit].filter(Boolean).join(" / ") || "-"}</td>
+                          <td className="px-4 py-2 text-gray-500">{employee.department ?? "-"}</td>
+                          <td className="px-4 py-2"><Badge className="bg-purple-50 text-purple-700">{employee.procurementRole ?? "REQUESTER"}</Badge></td>
+                          <td className="px-4 py-2 text-gray-500">{modules.length > 0 ? modules.join(", ") : "-"}</td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>

@@ -15,14 +15,20 @@ model Employee {
   employeeCode         String?
   name                 String
   email                String   @unique
+  companyId            String?
   department           String?
   section              String?
   designation          String?
   workLocation         String?
+  unit                 String?
   reportingManagerId   String?
   reportingManagerName String?
+  departmentManagerId  String?
+  departmentManagerName String?
+  hrmsRoles            String?  // JSON array synced from HRMS
   employmentStatus     String   @default("ACTIVE")
-  procurementRole      String?  // Extra role assigned by admin
+  procurementRole      String?  // Extra role assigned by procurement admin
+  moduleAccess         String?  // JSON array assigned by procurement admin
   lastSyncedAt         DateTime @default(now())
   createdAt            DateTime @default(now())
   updatedAt            DateTime @updatedAt

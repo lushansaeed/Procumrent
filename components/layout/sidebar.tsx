@@ -29,6 +29,39 @@ interface SidebarProps {
   user?: SessionUser | null;
 }
 
+const ROLES = {
+  ADMIN: "ADMIN",
+  MANAGEMENT: "MANAGEMENT",
+  PROCUREMENT: "PROCUREMENT",
+  FINANCE: "FINANCE",
+  STOREKEEPER: "STOREKEEPER",
+  DEPARTMENT_HEAD: "DEPARTMENT_HEAD",
+  MANAGER: "MANAGER",
+} as const;
+
+const MODULES = {
+  APPROVALS: "approvals",
+  PROCUREMENT: "procurement",
+  QUOTATIONS: "quotations",
+  PURCHASE_ORDERS: "purchase-orders",
+  GRN: "grn",
+  DELIVERY: "delivery",
+  STOCK: "stock",
+  TRANSFERS: "transfers",
+  ASSETS: "assets",
+  SUPPLIERS: "suppliers",
+  LOCATIONS: "locations",
+  REPORTS: "reports",
+  SETTINGS: "settings",
+} as const;
+
+function hasModuleAccess(user: SessionUser | null | undefined, module: string, fallbackRoles: string[] = []) {
+  if (!user) return false;
+  if (user.role === ROLES.ADMIN) return true;
+  if (user.moduleAccess?.includes(module)) return true;
+  return fallbackRoles.includes(user.role);
+}
+
 function NavItem({
   href,
   label,
@@ -83,22 +116,41 @@ export function Sidebar({ user }: SidebarProps) {
   }, []);
 
   const role = user?.role ?? "REQUESTER";
-  const isAdmin = role === "ADMIN";
-  const isManagement = role === "MANAGEMENT";
-  const isProcurement = role === "PROCUREMENT";
-  const isStorekeeper = role === "STOREKEEPER";
-  const canApprove = [
-    "ADMIN",
-    "MANAGEMENT",
-    "PROCUREMENT",
-    "FINANCE",
-    "DEPARTMENT_HEAD",
-    "MANAGER",
-  ].includes(role);
+  const isAdmin = role === ROLES.ADMIN;
+  const isManagement = role === ROLES.MANAGEMENT;
+  const isProcurement = role === ROLES.PROCUREMENT;
+  const isStorekeeper = role === ROLES.STOREKEEPER;
+  const canApprove = hasModuleAccess(user, MODULES.APPROVALS, [
+    ROLES.MANAGEMENT,
+    ROLES.PROCUREMENT,
+    ROLES.FINANCE,
+    ROLES.DEPARTMENT_HEAD,
+    ROLES.MANAGER,
+  ]);
 
-  const showProcurement = isAdmin || isProcurement;
-  const showInventory = isAdmin || isStorekeeper;
-  const showManagement = isAdmin || isManagement || isProcurement;
+  const showProcurement =
+    isAdmin ||
+    isProcurement ||
+    hasModuleAccess(user, MODULES.PROCUREMENT) ||
+    hasModuleAccess(user, MODULES.QUOTATIONS) ||
+    hasModuleAccess(user, MODULES.PURCHASE_ORDERS) ||
+    hasModuleAccess(user, MODULES.GRN) ||
+    hasModuleAccess(user, MODULES.DELIVERY);
+  const showInventory =
+    isAdmin ||
+    isStorekeeper ||
+    hasModuleAccess(user, MODULES.STOCK) ||
+    hasModuleAccess(user, MODULES.TRANSFERS) ||
+    hasModuleAccess(user, MODULES.ASSETS) ||
+    hasModuleAccess(user, MODULES.DELIVERY);
+  const showManagement =
+    isAdmin ||
+    isManagement ||
+    isProcurement ||
+    hasModuleAccess(user, MODULES.SUPPLIERS) ||
+    hasModuleAccess(user, MODULES.LOCATIONS) ||
+    hasModuleAccess(user, MODULES.REPORTS) ||
+    hasModuleAccess(user, MODULES.SETTINGS);
 
   return (
     <aside className="w-64 min-h-screen bg-gray-900 text-white flex flex-col shrink-0">
@@ -128,47 +180,67 @@ export function Sidebar({ user }: SidebarProps) {
         {showProcurement && (
           <>
             <SectionLabel label="Procurement" />
-            <NavItem
-              href="/dashboard/procurement"
-              label="Procurement Processing"
-              icon={Briefcase}
-            />
-            <NavItem href="/dashboard/quotations" label="Quotations" icon={FileSearch} />
-            <NavItem
-              href="/dashboard/purchase-orders"
-              label="Purchase Orders"
-              icon={ShoppingCart}
-            />
-            <NavItem href="/dashboard/grn" label="Goods Received" icon={PackageCheck} />
-            <NavItem href="/dashboard/delivery" label="Delivery Confirmation" icon={ClipboardCheck} />
+            {hasModuleAccess(user, MODULES.PROCUREMENT, [ROLES.PROCUREMENT]) && (
+              <NavItem
+                href="/dashboard/procurement"
+                label="Procurement Processing"
+                icon={Briefcase}
+              />
+            )}
+            {hasModuleAccess(user, MODULES.QUOTATIONS, [ROLES.PROCUREMENT]) && (
+              <NavItem href="/dashboard/quotations" label="Quotations" icon={FileSearch} />
+            )}
+            {hasModuleAccess(user, MODULES.PURCHASE_ORDERS, [ROLES.PROCUREMENT]) && (
+              <NavItem
+                href="/dashboard/purchase-orders"
+                label="Purchase Orders"
+                icon={ShoppingCart}
+              />
+            )}
+            {hasModuleAccess(user, MODULES.GRN, [ROLES.PROCUREMENT]) && (
+              <NavItem href="/dashboard/grn" label="Goods Received" icon={PackageCheck} />
+            )}
+            {hasModuleAccess(user, MODULES.DELIVERY, [ROLES.PROCUREMENT, ROLES.STOREKEEPER]) && (
+              <NavItem href="/dashboard/delivery" label="Delivery Confirmation" icon={ClipboardCheck} />
+            )}
           </>
         )}
 
         {showInventory && (
           <>
             <SectionLabel label="Inventory" />
-            <NavItem href="/dashboard/stock" label="Stock / Inventory" icon={Package} />
-            {!showProcurement && (
+            {hasModuleAccess(user, MODULES.STOCK, [ROLES.STOREKEEPER]) && (
+              <NavItem href="/dashboard/stock" label="Stock / Inventory" icon={Package} />
+            )}
+            {!showProcurement && hasModuleAccess(user, MODULES.DELIVERY, [ROLES.STOREKEEPER]) && (
               <NavItem href="/dashboard/delivery" label="Delivery Confirmation" icon={ClipboardCheck} />
             )}
-            <NavItem
-              href="/dashboard/transfers"
-              label="Stock Transfers"
-              icon={ArrowLeftRight}
-            />
-            <NavItem href="/dashboard/assets" label="Assets" icon={Monitor} />
+            {hasModuleAccess(user, MODULES.TRANSFERS, [ROLES.STOREKEEPER]) && (
+              <NavItem
+                href="/dashboard/transfers"
+                label="Stock Transfers"
+                icon={ArrowLeftRight}
+              />
+            )}
+            {hasModuleAccess(user, MODULES.ASSETS, [ROLES.STOREKEEPER]) && (
+              <NavItem href="/dashboard/assets" label="Assets" icon={Monitor} />
+            )}
           </>
         )}
 
         {showManagement && (
           <>
             <SectionLabel label="Management" />
-            <NavItem href="/dashboard/suppliers" label="Suppliers" icon={Building2} />
-            {(isAdmin || isManagement) && (
+            {hasModuleAccess(user, MODULES.SUPPLIERS, [ROLES.MANAGEMENT, ROLES.PROCUREMENT]) && (
+              <NavItem href="/dashboard/suppliers" label="Suppliers" icon={Building2} />
+            )}
+            {hasModuleAccess(user, MODULES.LOCATIONS, [ROLES.MANAGEMENT]) && (
               <NavItem href="/dashboard/locations" label="Locations" icon={MapPin} />
             )}
-            <NavItem href="/dashboard/reports" label="Reports" icon={BarChart3} />
-            {isAdmin && (
+            {hasModuleAccess(user, MODULES.REPORTS, [ROLES.MANAGEMENT, ROLES.PROCUREMENT]) && (
+              <NavItem href="/dashboard/reports" label="Reports" icon={BarChart3} />
+            )}
+            {hasModuleAccess(user, MODULES.SETTINGS) && (
               <NavItem href="/dashboard/settings" label="Admin Settings" icon={Settings} />
             )}
           </>
