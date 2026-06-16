@@ -18,6 +18,7 @@ type SessionUser = {
   email: string;
   role: string;
   companyId?: string;
+  companyName?: string;
   department?: string;
   designation?: string;
   workLocation?: string;
@@ -98,7 +99,7 @@ export default function NewRequestPage() {
               <div className="grid grid-cols-2 md:grid-cols-3 gap-4">{[...Array(5)].map((_, i) => <div key={i} className="h-10 bg-gray-100 rounded animate-pulse" />)}</div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {[{label:"Name",value:user?.name},{label:"Company",value:user?.companyId},{label:"Department",value:user?.department},{label:"Designation",value:user?.designation},{label:"Work Location",value:user?.workLocation}].map(f => (
+                {[{label:"Name",value:user?.name},{label:"Company",value:user?.companyName ?? user?.companyId},{label:"Department",value:user?.department},{label:"Designation",value:user?.designation},{label:"Work Location",value:user?.workLocation}].map(f => (
                   <div key={f.label}><Label className="text-xs text-gray-500 font-medium">{f.label}</Label><div className="mt-1 px-3 py-2 bg-gray-50 border border-gray-200 rounded-md text-sm text-gray-700">{f.value ?? "—"}</div></div>
                 ))}
               </div>

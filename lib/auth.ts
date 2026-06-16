@@ -12,6 +12,7 @@ export interface SessionUser {
   name: string;
   email: string;
   companyId?: string;
+  companyName?: string;
   department?: string;
   section?: string;
   designation?: string;

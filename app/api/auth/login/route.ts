@@ -90,6 +90,10 @@ function parseJsonArray(value: string | null | undefined): string[] {
   }
 }
 
+function hasHrmsRole(roles: string[], role: string) {
+  return roles.some((item) => item.trim().toUpperCase() === role);
+}
+
 async function fetchHrmsProfile(baseUrl: string, cookieHeader: string, hrmsUser: UnknownRecord) {
   const employeeId = pickText(hrmsUser.employeeId, hrmsUser.employeeCode, hrmsUser.id);
   const endpoints = [
@@ -196,6 +200,24 @@ export async function POST(request: NextRequest) {
     );
     const company = pickRecord(profile.company, hrmsUser.company);
     const unit = pickRecord(profile.unit, profile.businessUnit, hrmsUser.unit, hrmsUser.businessUnit);
+    const workLocation = pickRecord(
+      profile.workLocation,
+      profile.work_location,
+      profile.location,
+      profile.locationName,
+      profile.branch,
+      profile.site,
+      profile.employeeLocation,
+      profile.workSite,
+      hrmsUser.workLocation,
+      hrmsUser.work_location,
+      hrmsUser.location,
+      hrmsUser.locationName,
+      hrmsUser.branch,
+      hrmsUser.site,
+      hrmsUser.employeeLocation,
+      hrmsUser.workSite
+    );
     const hrmsRoles = normalizeRoles(
       profile.roles,
       profile.role,
@@ -214,10 +236,11 @@ export async function POST(request: NextRequest) {
       name: pickText(profile.name, profile.fullName, profile.employeeName, hrmsUser.name, hrmsUser.fullName) ?? email.split("@")[0],
       email: pickText(profile.email, hrmsUser.email) ?? email,
       companyId: pickText(profile.companyId, profile.companyID, profile.company_id, profile.companyCode, company.id, company.code, company.companyId, hrmsUser.companyId, hrmsUser.companyID, hrmsUser.company_id),
+      companyName: pickText(profile.companyName, profile.company_name, company.name, company.fullName, company.title, hrmsUser.companyName, hrmsUser.company_name),
       department: pickText(profile.department, profile.departmentName, hrmsUser.department, hrmsUser.departmentName),
       section: pickText(profile.section, profile.sectionName, hrmsUser.section, hrmsUser.sectionName),
       designation: pickText(profile.designation, profile.designationName, profile.position, profile.jobTitle, hrmsUser.designation, hrmsUser.position, hrmsUser.role),
-      workLocation: pickText(profile.workLocation, profile.location, profile.locationName, profile.branch, profile.site, hrmsUser.workLocation, hrmsUser.location, hrmsUser.locationName),
+      workLocation: pickText(profile.workLocationName, profile.work_location_name, profile.locationName, profile.branchName, profile.siteName, workLocation.name, workLocation.fullName, workLocation.title, workLocation.code, profile.workLocation, profile.work_location, profile.location, profile.branch, profile.site, hrmsUser.workLocationName, hrmsUser.locationName),
       unit: pickText(profile.unit, profile.unitName, profile.workUnit, profile.businessUnit, unit.name, unit.code, unit.id, hrmsUser.unit, hrmsUser.unitName, hrmsUser.workUnit, hrmsUser.businessUnit),
       reportingManagerId: pickText(profile.reportingManagerId, profile.managerId, profile.supervisorId, manager.employeeId, manager.id, manager.hrmsId),
       reportingManagerName: pickText(profile.reportingManagerName, profile.managerName, profile.supervisorName, manager.name, manager.fullName),
@@ -238,7 +261,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Your account is inactive. Please contact HR." }, { status: 403 });
     }
 
-    const procurementRole = employee.procurementRole ?? "REQUESTER";
+    const employeeHrmsRoles = parseJsonArray(employee.hrmsRoles);
+    const procurementRole = hasHrmsRole(employeeHrmsRoles, "ADMIN") ? "ADMIN" : employee.procurementRole ?? "REQUESTER";
 
     await createSession({
       id: employee.id,
@@ -246,6 +270,7 @@ export async function POST(request: NextRequest) {
       name: employee.name,
       email: employee.email,
       companyId: employee.companyId ?? undefined,
+      companyName: employee.companyName ?? undefined,
       department: employee.department ?? undefined,
       section: employee.section ?? undefined,
       designation: employee.designation ?? undefined,
@@ -255,7 +280,7 @@ export async function POST(request: NextRequest) {
       reportingManagerName: employee.reportingManagerName ?? undefined,
       departmentManagerId: employee.departmentManagerId ?? undefined,
       departmentManagerName: employee.departmentManagerName ?? undefined,
-      hrmsRoles: parseJsonArray(employee.hrmsRoles),
+      hrmsRoles: employeeHrmsRoles,
       employmentStatus: employee.employmentStatus,
       procurementRole: employee.procurementRole ?? undefined,
       moduleAccess: parseJsonArray(employee.moduleAccess),

@@ -16,6 +16,7 @@ type Employee = {
   name: string;
   email: string;
   companyId: string | null;
+  companyName: string | null;
   department: string | null;
   section: string | null;
   designation: string | null;
@@ -254,7 +255,7 @@ export function SettingsActions({
             <div className="rounded-md border bg-gray-50 p-3 text-xs text-gray-600">
               <div className="grid grid-cols-2 gap-2">
                 {[
-                  ["Company ID", selectedEmployee.companyId],
+                  ["Company", selectedEmployee.companyName ?? selectedEmployee.companyId],
                   ["Department", selectedEmployee.department],
                   ["Section", selectedEmployee.section],
                   ["Designation", selectedEmployee.designation],

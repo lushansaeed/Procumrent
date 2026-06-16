@@ -134,7 +134,7 @@ export default async function SettingsPage() {
                         <tr key={employee.id} className="border-b hover:bg-gray-50">
                           <td className="px-4 py-2 font-medium">{employee.name}</td>
                           <td className="px-4 py-2 text-gray-500">{employee.email}</td>
-                          <td className="px-4 py-2 text-gray-500">{[employee.companyId, employee.unit].filter(Boolean).join(" / ") || "-"}</td>
+                          <td className="px-4 py-2 text-gray-500">{[employee.companyName ?? employee.companyId, employee.unit].filter(Boolean).join(" / ") || "-"}</td>
                           <td className="px-4 py-2 text-gray-500">{employee.department ?? "-"}</td>
                           <td className="px-4 py-2"><Badge className="bg-purple-50 text-purple-700">{employee.procurementRole ?? "REQUESTER"}</Badge></td>
                           <td className="px-4 py-2 text-gray-500">{modules.length > 0 ? modules.join(", ") : "-"}</td>

@@ -16,6 +16,7 @@ model Employee {
   name                 String
   email                String   @unique
   companyId            String?
+  companyName          String?
   department           String?
   section              String?
   designation          String?
