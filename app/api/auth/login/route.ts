@@ -26,8 +26,16 @@ function pickText(...values: unknown[]): string | undefined {
     if (typeof value === "number") return String(value);
 
     const record = asRecord(value);
-    const nested = pickText(record.name, record.fullName, record.title, record.code, record.employeeCode, record.id);
-    if (nested) return nested;
+    const nested = [
+      record.name,
+      record.fullName,
+      record.title,
+      record.code,
+      record.employeeCode,
+      record.id,
+    ].find((item) => (typeof item === "string" && item.trim()) || typeof item === "number");
+    if (typeof nested === "string" && nested.trim()) return nested.trim();
+    if (typeof nested === "number") return String(nested);
   }
   return undefined;
 }
