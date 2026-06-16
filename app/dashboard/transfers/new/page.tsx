@@ -20,12 +20,7 @@ const schema = z.object({
   fromLocationId: z.string().min(1, "From location required"),
   toLocationId: z.string().min(1, "To location required"),
   remarks: z.string().optional(),
-  items: z.array(z.object({
-    itemId: z.string().min(1, "Item required"),
-    itemName: z.string().min(1),
-    unit: z.string().min(1),
-    requestedQty: z.coerce.number().min(1, "Qty must be at least 1"),
-  })).min(1, "At least one item required"),
+  items: z.array(z.object({ itemId: z.string().min(1, "Item required"), itemName: z.string().min(1), unit: z.string().min(1), requestedQty: z.coerce.number().min(1) })).min(1),
 });
 type FormData = z.infer<typeof schema>;
 
@@ -47,11 +42,7 @@ export default function NewTransferPage() {
   }, []);
 
   const onSubmit = async (data: FormData) => {
-    const res = await fetch("/api/stock/transfers", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(data),
-    });
+    const res = await fetch("/api/stock/transfers", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) });
     if (!res.ok) { toast.error("Failed to create transfer"); return; }
     toast.success("Transfer request submitted");
     router.push("/dashboard/transfers");
@@ -68,7 +59,6 @@ export default function NewTransferPage() {
           <p className="text-sm text-gray-500">Request a transfer of stock between locations</p>
         </div>
       </div>
-
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
         <Card>
           <CardHeader><CardTitle className="text-base">Transfer Details</CardTitle></CardHeader>
@@ -76,84 +66,43 @@ export default function NewTransferPage() {
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1.5">
                 <Label>From Location *</Label>
-                <Select onValueChange={(v) => setValue("fromLocationId", v)}>
-                  <SelectTrigger><SelectValue placeholder="Select source" /></SelectTrigger>
-                  <SelectContent>
-                    {locations.map(l => <SelectItem key={l.id} value={l.id}>{l.name} ({l.code})</SelectItem>)}
-                  </SelectContent>
-                </Select>
+                <Select onValueChange={v => setValue("fromLocationId", v)}><SelectTrigger><SelectValue placeholder="Select source" /></SelectTrigger><SelectContent>{locations.map(l => <SelectItem key={l.id} value={l.id}>{l.name} ({l.code})</SelectItem>)}</SelectContent></Select>
                 {errors.fromLocationId && <p className="text-xs text-red-500">{errors.fromLocationId.message}</p>}
               </div>
               <div className="space-y-1.5">
                 <Label>To Location *</Label>
-                <Select onValueChange={(v) => setValue("toLocationId", v)}>
-                  <SelectTrigger><SelectValue placeholder="Select destination" /></SelectTrigger>
-                  <SelectContent>
-                    {locations.map(l => <SelectItem key={l.id} value={l.id}>{l.name} ({l.code})</SelectItem>)}
-                  </SelectContent>
-                </Select>
+                <Select onValueChange={v => setValue("toLocationId", v)}><SelectTrigger><SelectValue placeholder="Select destination" /></SelectTrigger><SelectContent>{locations.map(l => <SelectItem key={l.id} value={l.id}>{l.name} ({l.code})</SelectItem>)}</SelectContent></Select>
                 {errors.toLocationId && <p className="text-xs text-red-500">{errors.toLocationId.message}</p>}
               </div>
             </div>
-            <div className="space-y-1.5">
-              <Label>Remarks</Label>
-              <Input {...register("remarks")} placeholder="Reason for transfer" />
-            </div>
+            <div className="space-y-1.5"><Label>Remarks</Label><Input {...register("remarks")} placeholder="Reason for transfer" /></div>
           </CardContent>
         </Card>
-
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle className="text-base">Items to Transfer</CardTitle>
-            <Button type="button" size="sm" variant="outline" onClick={() => append({ itemId: "", itemName: "", unit: "", requestedQty: 1 })}>
-              <Plus className="w-4 h-4" /> Add Item
-            </Button>
+            <Button type="button" size="sm" variant="outline" onClick={() => append({ itemId: "", itemName: "", unit: "", requestedQty: 1 })}><Plus className="w-4 h-4" /> Add Item</Button>
           </CardHeader>
           <CardContent className="space-y-3">
             {fields.map((field, i) => (
               <div key={field.id} className="grid grid-cols-5 gap-2 items-end border-b pb-3">
                 <div className="col-span-2 space-y-1">
                   <Label className="text-xs">Item *</Label>
-                  <Select onValueChange={(v) => {
-                    const item = items.find(it => it.id === v);
-                    if (item) {
-                      setValue(`items.${i}.itemId`, item.id);
-                      setValue(`items.${i}.itemName`, item.name);
-                      setValue(`items.${i}.unit`, item.unit);
-                    }
-                  }}>
+                  <Select onValueChange={v => { const item = items.find(it => it.id === v); if (item) { setValue(`items.${i}.itemId`, item.id); setValue(`items.${i}.itemName`, item.name); setValue(`items.${i}.unit`, item.unit); } }}>
                     <SelectTrigger className="h-9"><SelectValue placeholder="Select item" /></SelectTrigger>
-                    <SelectContent>
-                      {items.map(it => <SelectItem key={it.id} value={it.id}>{it.name} ({it.code})</SelectItem>)}
-                    </SelectContent>
+                    <SelectContent>{items.map(it => <SelectItem key={it.id} value={it.id}>{it.name} ({it.code})</SelectItem>)}</SelectContent>
                   </Select>
-                  {errors.items?.[i]?.itemId && <p className="text-xs text-red-500">{errors.items[i]?.itemId?.message}</p>}
                 </div>
-                <div className="space-y-1">
-                  <Label className="text-xs">Unit</Label>
-                  <Input readOnly value={watchedItems?.[i]?.unit ?? ""} className="bg-gray-50" />
-                </div>
-                <div className="space-y-1">
-                  <Label className="text-xs">Qty *</Label>
-                  <Input type="number" {...register(`items.${i}.requestedQty`)} />
-                  {errors.items?.[i]?.requestedQty && <p className="text-xs text-red-500">{errors.items[i]?.requestedQty?.message}</p>}
-                </div>
-                <div className="flex items-end">
-                  <Button type="button" size="sm" variant="ghost" className="text-red-500 h-9 w-9 p-0" onClick={() => fields.length > 1 && remove(i)}>
-                    <Trash2 className="w-4 h-4" />
-                  </Button>
-                </div>
+                <div className="space-y-1"><Label className="text-xs">Unit</Label><Input readOnly value={watchedItems?.[i]?.unit ?? ""} className="bg-gray-50" /></div>
+                <div className="space-y-1"><Label className="text-xs">Qty *</Label><Input type="number" {...register(`items.${i}.requestedQty`)} /></div>
+                <div className="flex items-end"><Button type="button" size="sm" variant="ghost" className="text-red-500 h-9 w-9 p-0" onClick={() => fields.length > 1 && remove(i)}><Trash2 className="w-4 h-4" /></Button></div>
               </div>
             ))}
-            {errors.items?.root && <p className="text-xs text-red-500">{errors.items.root.message}</p>}
           </CardContent>
         </Card>
-
         <div className="flex justify-end gap-3">
           <Button type="button" variant="outline" onClick={() => router.back()}>Cancel</Button>
-          <Button type="submit" disabled={isSubmitting}>
-            {isSubmitting && <Loader2 className="w-4 h-4 animate-spin" />} Submit Transfer
-          </Button>
+          <Button type="submit" disabled={isSubmitting}>{isSubmitting && <Loader2 className="w-4 h-4 animate-spin" />} Submit Transfer</Button>
         </div>
       </form>
     </div>
