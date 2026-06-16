@@ -27,6 +27,7 @@ const moduleRoutes = [
 ];
 
 function canOpenModule(user: TokenUser, module: string, roles: string[]) {
+  if (user.role === "ADMIN") return true;
   if (user.moduleAccess?.includes(module)) return true;
   return Boolean(user.role && roles.includes(user.role));
 }

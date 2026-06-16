@@ -57,6 +57,7 @@ const MODULES = {
 
 function hasModuleAccess(user: SessionUser | null | undefined, module: string, fallbackRoles: string[] = []) {
   if (!user) return false;
+  if (user.role === ROLES.ADMIN) return true;
   if (user.moduleAccess?.includes(module)) return true;
   return fallbackRoles.includes(user.role);
 }
