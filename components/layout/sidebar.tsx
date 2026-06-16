@@ -57,7 +57,6 @@ const MODULES = {
 
 function hasModuleAccess(user: SessionUser | null | undefined, module: string, fallbackRoles: string[] = []) {
   if (!user) return false;
-  if (user.role === ROLES.ADMIN) return true;
   if (user.moduleAccess?.includes(module)) return true;
   return fallbackRoles.includes(user.role);
 }
@@ -116,7 +115,6 @@ export function Sidebar({ user }: SidebarProps) {
   }, []);
 
   const role = user?.role ?? "REQUESTER";
-  const isAdmin = role === ROLES.ADMIN;
   const isManagement = role === ROLES.MANAGEMENT;
   const isProcurement = role === ROLES.PROCUREMENT;
   const isStorekeeper = role === ROLES.STOREKEEPER;
@@ -129,7 +127,6 @@ export function Sidebar({ user }: SidebarProps) {
   ]);
 
   const showProcurement =
-    isAdmin ||
     isProcurement ||
     hasModuleAccess(user, MODULES.PROCUREMENT) ||
     hasModuleAccess(user, MODULES.QUOTATIONS) ||
@@ -137,14 +134,12 @@ export function Sidebar({ user }: SidebarProps) {
     hasModuleAccess(user, MODULES.GRN) ||
     hasModuleAccess(user, MODULES.DELIVERY);
   const showInventory =
-    isAdmin ||
     isStorekeeper ||
     hasModuleAccess(user, MODULES.STOCK) ||
     hasModuleAccess(user, MODULES.TRANSFERS) ||
     hasModuleAccess(user, MODULES.ASSETS) ||
     hasModuleAccess(user, MODULES.DELIVERY);
   const showManagement =
-    isAdmin ||
     isManagement ||
     isProcurement ||
     hasModuleAccess(user, MODULES.SUPPLIERS) ||
@@ -246,9 +241,6 @@ export function Sidebar({ user }: SidebarProps) {
           </>
         )}
 
-        {!showManagement && (
-          <NavItem href="/dashboard/reports" label="Reports" icon={BarChart3} />
-        )}
       </nav>
 
       <div className="px-3 py-4 border-t border-gray-700">
