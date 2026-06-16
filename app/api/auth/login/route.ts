@@ -57,6 +57,8 @@ export async function POST(request: NextRequest) {
         "Content-Type": "application/x-www-form-urlencoded",
         Accept: "application/json",
         Cookie: cookiesToHeader(csrfCookies),
+        Origin: HRMS_BASE,
+        Referer: `${HRMS_BASE}/login`,
       },
       body: formBody.toString(),
       redirect: "manual",
