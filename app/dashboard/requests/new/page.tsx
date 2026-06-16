@@ -38,7 +38,11 @@ export default function NewRequestPage() {
   const [items, setItems] = useState<RequestItem[]>([emptyItem()]);
 
   useEffect(() => {
-    fetch("/api/auth/me").then(r => r.json()).then(setUser).catch(() => {}).finally(() => setLoadingUser(false));
+    fetch("/api/auth/me")
+      .then(r => r.json())
+      .then(data => setUser(data.user ?? null))
+      .catch(() => {})
+      .finally(() => setLoadingUser(false));
     fetch("/api/locations").then(r => r.json()).then(data => { if (Array.isArray(data)) setLocations(data); else if (Array.isArray(data?.locations)) setLocations(data.locations); }).catch(() => {});
   }, []);
 
