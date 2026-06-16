@@ -1,0 +1,112 @@
+export const dynamic = "force-dynamic";
+
+import { redirect } from "next/navigation";
+import { getSession } from "@/lib/auth";
+import { db } from "@/lib/db";
+import Link from "next/link";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent } from "@/components/ui/card";
+import { formatCurrency, formatDate, statusColor, priorityColor, requestTypeColor } from "@/lib/utils";
+import { Briefcase } from "lucide-react";
+
+const PROCUREMENT_STATUSES = [
+  "PURCHASE_REQUIRED",
+  "QUOTATION_PENDING",
+  "SUPPLIER_SELECTED",
+  "FINANCE_APPROVAL_PENDING",
+  "PURCHASE_APPROVED",
+];
+
+export default async function ProcurementPage() {
+  const user = await getSession();
+  if (!user) redirect("/login");
+
+  if (!["ADMIN", "PROCUREMENT", "MANAGEMENT"].includes(user.role)) {
+    redirect("/dashboard");
+  }
+
+  const requests = await db.purchaseRequest.findMany({
+    where: { status: { in: PROCUREMENT_STATUSES } },
+    include: {
+      _count: { select: { items: true } },
+      deliveryLocation: { select: { name: true } },
+    },
+    orderBy: { createdAt: "desc" },
+  });
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-2xl font-bold text-gray-900">Procurement Processing</h1>
+        <p className="text-gray-500 text-sm mt-0.5">
+          Requests requiring procurement action — {requests.length} pending
+        </p>
+      </div>
+
+      <Card>
+        <CardContent className="p-0">
+          {requests.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-16 text-gray-400">
+              <Briefcase className="w-12 h-12 mb-3 opacity-30" />
+              <p className="text-base font-medium">No items pending procurement</p>
+              <p className="text-sm mt-1">All requests have been processed.</p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b bg-gray-50">
+                    <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Request #</th>
+                    <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Requester</th>
+                    <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Purpose</th>
+                    <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Type</th>
+                    <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Priority</th>
+                    <th className="text-right px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Items</th>
+                    <th className="text-right px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Amount</th>
+                    <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Status</th>
+                    <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Date</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {requests.map((req) => (
+                    <tr key={req.id} className="border-b hover:bg-gray-50 transition-colors">
+                      <td className="px-6 py-3">
+                        <Link
+                          href={`/dashboard/requests/${req.id}`}
+                          className="text-blue-600 hover:underline font-medium"
+                        >
+                          {req.requestNumber}
+                        </Link>
+                      </td>
+                      <td className="px-6 py-3">
+                        <div className="font-medium text-gray-900">{req.requesterName}</div>
+                        <div className="text-xs text-gray-500">{req.requesterDepartment ?? "—"}</div>
+                      </td>
+                      <td className="px-6 py-3 max-w-[180px]">
+                        <span className="line-clamp-1 text-gray-700">{req.purpose ?? "—"}</span>
+                      </td>
+                      <td className="px-6 py-3">
+                        <Badge className={requestTypeColor(req.requestType)}>{req.requestType}</Badge>
+                      </td>
+                      <td className="px-6 py-3">
+                        <Badge className={priorityColor(req.priority)}>{req.priority}</Badge>
+                      </td>
+                      <td className="px-6 py-3 text-right">{req._count.items}</td>
+                      <td className="px-6 py-3 text-right font-medium">{formatCurrency(req.estimatedTotal)}</td>
+                      <td className="px-6 py-3">
+                        <Badge className={statusColor(req.status)}>
+                          {req.status.replace(/_/g, " ")}
+                        </Badge>
+                      </td>
+                      <td className="px-6 py-3 text-gray-500 whitespace-nowrap">{formatDate(req.requestDate)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
