@@ -1,7 +1,24 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createSession } from "@/lib/auth";
 
-const HRMS_BASE = process.env.HRMS_API_URL ?? "https://hrms.vahmaafushi.com";
+const HRMS_BASE = (process.env.HRMS_API_URL ?? "https://hrms.vahmaafushi.com").replace(/\/api$/, "");
+
+function extractCookies(headers: Headers): string[] {
+  // getSetCookie returns each Set-Cookie header separately (Node 18+)
+  if (typeof headers.getSetCookie === "function") {
+    return headers.getSetCookie();
+  }
+  const raw = headers.get("set-cookie");
+  return raw ? raw.split(/,(?=[^ ])/) : [];
+}
+
+function cookiesToHeader(cookieStrings: string[]): string {
+  // Parse name=value from each Set-Cookie string, join as Cookie header
+  return cookieStrings
+    .map((c) => c.split(";")[0].trim())
+    .filter(Boolean)
+    .join("; ");
+}
 
 export async function POST(request: NextRequest) {
   const { email, password } = await request.json();
@@ -11,20 +28,21 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    // Step 1: get CSRF token from HRMS NextAuth
+    // Step 1: get CSRF token
     const csrfRes = await fetch(`${HRMS_BASE}/api/auth/csrf`, {
-      headers: { "Content-Type": "application/json" },
+      headers: { Accept: "application/json" },
     });
 
     if (!csrfRes.ok) {
+      console.error("CSRF fetch failed:", csrfRes.status, await csrfRes.text());
       return NextResponse.json({ error: "Could not reach HRMS server" }, { status: 502 });
     }
 
     const { csrfToken } = await csrfRes.json();
-    const cookies = csrfRes.headers.get("set-cookie") ?? "";
+    const csrfCookies = extractCookies(csrfRes.headers);
 
-    // Step 2: POST credentials to NextAuth callback endpoint
-    const body = new URLSearchParams({
+    // Step 2: sign in with credentials
+    const formBody = new URLSearchParams({
       csrfToken,
       email,
       password,
@@ -37,38 +55,50 @@ export async function POST(request: NextRequest) {
       method: "POST",
       headers: {
         "Content-Type": "application/x-www-form-urlencoded",
-        Cookie: cookies,
+        Accept: "application/json",
+        Cookie: cookiesToHeader(csrfCookies),
       },
-      body: body.toString(),
+      body: formBody.toString(),
       redirect: "manual",
     });
 
-    // NextAuth returns a URL — error means failure
-    const result = await signInRes.json().catch(() => null);
-    const redirectUrl: string = result?.url ?? "";
+    const signInCookies = extractCookies(signInRes.headers);
+    const allCookies = cookiesToHeader([...csrfCookies, ...signInCookies]);
 
-    if (redirectUrl.includes("error=")) {
+    // Check for error in redirect URL (NextAuth signals failure via ?error=)
+    const location = signInRes.headers.get("location") ?? "";
+    let resultUrl = "";
+    try {
+      const json = await signInRes.json();
+      resultUrl = json?.url ?? "";
+    } catch {
+      resultUrl = location;
+    }
+
+    if (resultUrl.includes("error=") || (!resultUrl && signInRes.status >= 400)) {
       return NextResponse.json({ error: "Invalid email or password" }, { status: 401 });
     }
 
-    // Step 3: fetch session to get user info
-    const sessionCookies = [cookies, signInRes.headers.get("set-cookie") ?? ""]
-      .filter(Boolean)
-      .join("; ");
-
+    // Step 3: fetch session to get user details
     const sessionRes = await fetch(`${HRMS_BASE}/api/auth/session`, {
-      headers: { Cookie: sessionCookies },
+      headers: {
+        Accept: "application/json",
+        Cookie: allCookies,
+      },
     });
 
-    const session = await sessionRes.json().catch(() => ({}));
-    const user = session?.user ?? null;
+    const sessionData = await sessionRes.json().catch(() => ({}));
+    console.log("HRMS session response:", JSON.stringify(sessionData));
+
+    const user = sessionData?.user ?? null;
 
     if (!user?.email) {
+      console.error("No user in session. allCookies:", allCookies, "sessionData:", sessionData);
       return NextResponse.json({ error: "Login failed — could not retrieve user" }, { status: 401 });
     }
 
     await createSession({
-      id: user.id ?? user.employeeId ?? user.email,
+      id: String(user.id ?? user.employeeId ?? user.email),
       name: user.name ?? user.email.split("@")[0],
       email: user.email,
       role: user.role ?? user.position ?? "staff",
