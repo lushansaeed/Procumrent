@@ -481,4 +481,12 @@ export function SettingsActions({
             ) : approvalMatrices.map((rule) => (
               <div key={rule.id} className="border-b last:border-b-0 p-3">
                 <p className="text-sm font-medium text-gray-900">{rule.name}</p>
-                <p className="text-xs text-gray-500 mt-1">{rule.description ?? "No description"}<
+                <p className="text-xs text-gray-500 mt-1">{rule.description ?? "No description"}</p>
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
