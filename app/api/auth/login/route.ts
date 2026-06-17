@@ -235,11 +235,38 @@ export async function POST(request: NextRequest) {
     );
 
     const hrmsId = pickText(profile.hrmsId, profile.employeeId, profile.id, hrmsUser.id, hrmsUser.employeeId, hrmsUser.email) ?? email;
+    const officialWorkEmail = pickText(
+      profile.workEmail,
+      profile.work_email,
+      profile.officialEmail,
+      profile.official_email,
+      profile.companyEmail,
+      profile.company_email,
+      profile.businessEmail,
+      profile.business_email,
+      profile.corporateEmail,
+      profile.corporate_email,
+      profile.emailWork,
+      profile.email_work,
+      hrmsUser.workEmail,
+      hrmsUser.work_email,
+      hrmsUser.officialEmail,
+      hrmsUser.official_email,
+      hrmsUser.companyEmail,
+      hrmsUser.company_email,
+      hrmsUser.businessEmail,
+      hrmsUser.business_email,
+      hrmsUser.corporateEmail,
+      hrmsUser.corporate_email,
+      hrmsUser.emailWork,
+      hrmsUser.email_work
+    );
     const employeeData = {
       hrmsId,
       employeeCode: pickText(profile.employeeCode, profile.code, profile.staffCode, profile.empCode, hrmsUser.employeeCode, hrmsUser.employeeId),
       name: pickText(profile.name, profile.fullName, profile.employeeName, hrmsUser.name, hrmsUser.fullName) ?? email.split("@")[0],
-      email: pickText(profile.email, hrmsUser.email) ?? email,
+      email: officialWorkEmail ?? `${hrmsId}@no-work-email.local`,
+      workEmail: officialWorkEmail,
       companyId: pickText(profile.companyId, profile.companyID, profile.company_id, profile.companyCode, company.id, company.code, company.companyId, hrmsUser.companyId, hrmsUser.companyID, hrmsUser.company_id),
       companyName: pickText(profile.companyName, profile.company_name, company.name, company.fullName, company.title, hrmsUser.companyName, hrmsUser.company_name),
       department: pickText(profile.department, profile.departmentName, hrmsUser.department, hrmsUser.departmentName),
@@ -345,22 +372,4 @@ export async function POST(request: NextRequest) {
       department: employee.department ?? undefined,
       section: employee.section ?? undefined,
       designation: employee.designation ?? undefined,
-      workLocation: employee.workLocation ?? undefined,
-      unit: employee.unit ?? undefined,
-      reportingManagerId: employee.reportingManagerId ?? undefined,
-      reportingManagerName: employee.reportingManagerName ?? undefined,
-      departmentManagerId: employee.departmentManagerId ?? undefined,
-      departmentManagerName: employee.departmentManagerName ?? undefined,
-      hrmsRoles: employeeHrmsRoles,
-      employmentStatus: employee.employmentStatus,
-      procurementRole: employee.procurementRole ?? undefined,
-      moduleAccess: procurementModules,
-      role: procurementRole,
-    });
-
-    return NextResponse.json({ ok: true });
-  } catch (err) {
-    console.error("HRMS auth error:", err);
-    return NextResponse.json({ error: "Could not reach HRMS server" }, { status: 502 });
-  }
-}
+      workLocation: employee.workL

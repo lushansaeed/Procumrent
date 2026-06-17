@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { MODULES, getSession, hasModuleAccess } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { fetchHrmsCompanies } from "@/lib/hrms-companies";
 
 function parseList(value: string | null) {
   if (!value) return [];
@@ -24,6 +25,23 @@ export default async function SettingsPage() {
   const user = await getSession();
   if (!user) redirect("/login");
   if (!hasModuleAccess(user, MODULES.SETTINGS)) redirect("/dashboard");
+
+  const hrmsCompanies = await fetchHrmsCompanies();
+  if (hrmsCompanies.length > 0) {
+    await Promise.all(
+      hrmsCompanies.map((company) =>
+        db.procurementCompany.upsert({
+          where: { hrmsCompanyId: company.hrmsCompanyId },
+          update: { name: company.name, code: company.code ?? company.hrmsCompanyId, isActive: true },
+          create: {
+            hrmsCompanyId: company.hrmsCompanyId,
+            code: company.code ?? company.hrmsCompanyId,
+            name: company.name,
+          },
+        })
+      )
+    );
+  }
 
   const [categories, locations, accessAssignments, allEmployees, approvalMatrices, companies] = await Promise.all([
     db.itemCategory.findMany({ orderBy: { name: "asc" } }),
@@ -116,7 +134,7 @@ export default async function SettingsPage() {
                   <thead>
                     <tr className="border-b bg-gray-50">
                       <th className="text-left px-4 py-2 text-xs font-semibold text-gray-500 uppercase">Name</th>
-                      <th className="text-left px-4 py-2 text-xs font-semibold text-gray-500 uppercase">Email</th>
+                      <th className="text-left px-4 py-2 text-xs font-semibold text-gray-500 uppercase">Work Email</th>
                       <th className="text-left px-4 py-2 text-xs font-semibold text-gray-500 uppercase">Company / Project</th>
                       <th className="text-left px-4 py-2 text-xs font-semibold text-gray-500 uppercase">Department</th>
                       <th className="text-left px-4 py-2 text-xs font-semibold text-gray-500 uppercase">Role</th>
@@ -129,7 +147,7 @@ export default async function SettingsPage() {
                       return (
                         <tr key={assignment.id} className="border-b hover:bg-gray-50">
                           <td className="px-4 py-2 font-medium">{assignment.employee.name}</td>
-                          <td className="px-4 py-2 text-gray-500">{assignment.employee.email}</td>
+                          <td className="px-4 py-2 text-gray-500">{assignment.employee.workEmail ?? "-"}</td>
                           <td className="px-4 py-2 text-gray-500">{[assignment.company.name, assignment.project?.name].filter(Boolean).join(" / ")}</td>
                           <td className="px-4 py-2 text-gray-500">{assignment.employee.department ?? "-"}</td>
                           <td className="px-4 py-2"><Badge className="bg-purple-50 text-purple-700">{assignment.role}</Badge></td>
@@ -155,19 +173,4 @@ export default async function SettingsPage() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {[
                 { label: "Currency", value: "MVR (Maldivian Rufiyaa)" },
-                { label: "Request Numbering", value: "PR-YYYY-NNNN" },
-                { label: "PO Numbering", value: "PO-YYYY-NNNN" },
-                { label: "GRN Numbering", value: "GRN-YYYY-NNNN" },
-              ].map((setting) => (
-                <div key={setting.label} className="p-4 rounded-lg border bg-gray-50">
-                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">{setting.label}</p>
-                  <p className="mt-1 text-sm font-medium">{setting.value}</p>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-    </div>
-  );
-}
+                { label: 

@@ -15,6 +15,7 @@ type Employee = {
   id: string;
   name: string;
   email: string;
+  workEmail: string | null;
   companyId: string | null;
   companyName: string | null;
   department: string | null;
@@ -309,7 +310,7 @@ export function SettingsActions({
               <SelectContent>
                 {employees.map((employee) => (
                   <SelectItem key={employee.id} value={employee.id}>
-                    {employee.name} - {employee.email}
+                    {employee.name} - {employee.workEmail ?? "No work email"}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -350,6 +351,7 @@ export function SettingsActions({
               <div className="grid grid-cols-2 gap-2">
                 {[
                   ["Company", selectedEmployee.companyName ?? selectedEmployee.companyId],
+                  ["Work Email", selectedEmployee.workEmail],
                   ["Department", selectedEmployee.department],
                   ["Section", selectedEmployee.section],
                   ["Designation", selectedEmployee.designation],
@@ -479,12 +481,4 @@ export function SettingsActions({
             ) : approvalMatrices.map((rule) => (
               <div key={rule.id} className="border-b last:border-b-0 p-3">
                 <p className="text-sm font-medium text-gray-900">{rule.name}</p>
-                <p className="text-xs text-gray-500 mt-1">{rule.description ?? "No description"}</p>
-              </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
-    </div>
-  );
-}
+                <p className="text-xs text-gray-500 mt-1">{rule.description ?? "No description"}<

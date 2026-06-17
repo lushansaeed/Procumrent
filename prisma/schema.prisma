@@ -15,6 +15,7 @@ model Employee {
   employeeCode         String?
   name                 String
   email                String   @unique
+  workEmail            String?
   companyId            String?
   companyName          String?
   department           String?
@@ -577,5 +578,4 @@ model SystemSetting {
   id        String   @id @default(cuid())
   key       String   @unique
   value     String
-  updatedAt DateTime @updatedAt
-}
+  u
