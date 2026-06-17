@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { statusColor, priorityColor, formatCurrency, formatDate, formatDateTime } from "@/lib/utils";
-import { ArrowLeft, Package } from "lucide-react";
+import { ArrowLeft, FileSearch, Package, Plus } from "lucide-react";
 import { ApprovalActions } from "./ApprovalActions";
 
 export const dynamic = "force-dynamic";
@@ -20,7 +20,13 @@ export default async function RequestDetailPage({ params }: PageProps) {
 
   const request = await db.purchaseRequest.findUnique({
     where: { id },
-    include: { items: true, approvals: { orderBy: { step: "asc" } }, statusHistory: { orderBy: { createdAt: "asc" } }, deliveryLocation: true },
+    include: {
+      items: true,
+      approvals: { orderBy: { step: "asc" } },
+      statusHistory: { orderBy: { createdAt: "asc" } },
+      deliveryLocation: true,
+      quotations: { include: { supplier: true, _count: { select: { items: true } } }, orderBy: { createdAt: "desc" } },
+    },
   });
 
   if (!request) notFound();
@@ -28,6 +34,7 @@ export default async function RequestDetailPage({ params }: PageProps) {
   const canApprove = request.status === "PENDING_SUPERVISOR_APPROVAL" && (session.role === "MANAGER" || session.role === "DEPARTMENT_HEAD");
   const canCheckStock = request.status === "CHECKING_STOCK" && session.role === "STOREKEEPER";
   const canIssueStock = request.status === "AVAILABLE_IN_STOCK" && session.role === "STOREKEEPER";
+  const canManageQuotations = ["ADMIN", "PROCUREMENT"].includes(session.role);
 
   return (
     <div className="space-y-6">
@@ -124,6 +131,57 @@ export default async function RequestDetailPage({ params }: PageProps) {
                       </div>
                     </div>
                   ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <CardTitle>Quotations</CardTitle>
+              {canManageQuotations && (
+                <Button asChild size="sm" variant="outline">
+                  <Link href={`/dashboard/quotations/new?requestId=${request.id}`}>
+                    <Plus className="h-4 w-4" />
+                    Add Quotation
+                  </Link>
+                </Button>
+              )}
+            </CardHeader>
+            <CardContent className="p-0">
+              {request.quotations.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-10 text-gray-400">
+                  <FileSearch className="mb-2 h-8 w-8 opacity-30" />
+                  <p className="text-sm font-medium">No quotations recorded</p>
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b bg-muted/50">
+                        <th className="px-4 py-3 text-left font-medium text-muted-foreground">Quotation</th>
+                        <th className="px-4 py-3 text-left font-medium text-muted-foreground">Supplier</th>
+                        <th className="px-4 py-3 text-right font-medium text-muted-foreground">Items</th>
+                        <th className="px-4 py-3 text-right font-medium text-muted-foreground">Amount</th>
+                        <th className="px-4 py-3 text-left font-medium text-muted-foreground">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {request.quotations.map((quotation) => (
+                        <tr key={quotation.id} className="border-b last:border-0 hover:bg-muted/30">
+                          <td className="px-4 py-3 font-medium">
+                            <Link href={`/dashboard/quotations/${quotation.id}`} className="text-blue-600 hover:underline">
+                              {quotation.quotationNumber}
+                            </Link>
+                          </td>
+                          <td className="px-4 py-3">{quotation.supplier.name}</td>
+                          <td className="px-4 py-3 text-right">{quotation._count.items}</td>
+                          <td className="px-4 py-3 text-right font-medium">{formatCurrency(quotation.totalAmount)}</td>
+                          <td className="px-4 py-3"><Badge className={statusColor(quotation.status)}>{quotation.status}</Badge></td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
               )}
             </CardContent>

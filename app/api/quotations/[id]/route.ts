@@ -22,7 +22,20 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     if (!quotation) return NextResponse.json({ error: "Not found" }, { status: 404 });
     await db.quotation.updateMany({ where: { requestId: quotation.requestId, id: { not: id } }, data: { status: "REJECTED", isSelected: false } });
     await db.quotation.update({ where: { id }, data: { isSelected: true, status: "SELECTED", selectionReason: body.selectionReason } });
-    await db.purchaseRequest.update({ where: { id: quotation.requestId }, data: { status: "SUPPLIER_SELECTED" } });
+    await db.purchaseRequest.update({
+      where: { id: quotation.requestId },
+      data: {
+        status: "SUPPLIER_SELECTED",
+        statusHistory: {
+          create: {
+            status: "SUPPLIER_SELECTED",
+            changedBy: user.id,
+            changedByName: user.name,
+            comment: body.selectionReason ? `Quotation selected: ${body.selectionReason}` : "Quotation selected.",
+          },
+        },
+      },
+    });
     return NextResponse.json({ ok: true });
   }
   const updated = await db.quotation.update({ where: { id }, data: body });

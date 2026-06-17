@@ -21,6 +21,8 @@ export async function POST(req: NextRequest) {
   const count = await db.quotation.count();
   const year = new Date().getFullYear();
   const quotationNumber = `QT-${year}-${String(count + 1).padStart(4, "0")}`;
+  const requestRecord = await db.purchaseRequest.findUnique({ where: { id: requestId }, select: { status: true } });
+  if (!requestRecord) return NextResponse.json({ error: "Request not found" }, { status: 404 });
   const quotation = await db.quotation.create({
     data: {
       quotationNumber, requestId, supplierId, totalAmount: totalAmount ?? 0, deliveryDays, warranty, paymentTerms, availability, remarks,
@@ -28,5 +30,21 @@ export async function POST(req: NextRequest) {
     },
     include: { supplier: true, items: true },
   });
+  if (!["SUPPLIER_SELECTED", "PO_CREATED"].includes(requestRecord.status)) {
+    await db.purchaseRequest.update({
+      where: { id: requestId },
+      data: {
+        status: "QUOTATION_PENDING",
+        statusHistory: {
+          create: {
+            status: "QUOTATION_PENDING",
+            changedBy: user.id,
+            changedByName: user.name,
+            comment: `Quotation ${quotationNumber} recorded.`,
+          },
+        },
+      },
+    });
+  }
   return NextResponse.json(quotation, { status: 201 });
 }

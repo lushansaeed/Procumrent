@@ -53,6 +53,8 @@ export function statusColor(status: string): string {
     COMPLETED: "bg-green-200 text-green-900",
     CANCELLED: "bg-gray-200 text-gray-600",
     PENDING: "bg-yellow-50 text-yellow-700",
+    SELECTED: "bg-green-100 text-green-700",
+    REJECTED_QUOTATION: "bg-red-50 text-red-700",
     APPROVED: "bg-green-100 text-green-700",
     ISSUED: "bg-blue-100 text-blue-700",
     RECEIVED: "bg-green-100 text-green-700",

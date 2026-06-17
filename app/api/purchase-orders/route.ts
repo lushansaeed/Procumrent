@@ -22,7 +22,7 @@ export async function POST(request: NextRequest) {
   if (!["ADMIN","PROCUREMENT"].includes(user.role)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const body = await request.json();
-  const { supplierId, requestId, items, deliveryDate, paymentTerms, notes, tax } = body;
+  const { supplierId, requestId, quotationId, items, deliveryDate, paymentTerms, notes, tax } = body;
   if (!supplierId || !items?.length) return NextResponse.json({ error: "Supplier and items are required" }, { status: 400 });
 
   const count = await db.purchaseOrder.count();
@@ -33,7 +33,7 @@ export async function POST(request: NextRequest) {
 
   const po = await db.purchaseOrder.create({
     data: {
-      poNumber, supplierId, requestId: requestId ?? null, issuedById: user.id, issuedByName: user.name,
+      poNumber, supplierId, requestId: requestId ?? null, quotationId: quotationId ?? null, issuedById: user.id, issuedByName: user.name,
       subtotal, tax: taxAmount, totalAmount: subtotal + taxAmount,
       deliveryDate: deliveryDate ? new Date(deliveryDate) : null, paymentTerms, notes,
       items: { create: items.map((item: { itemId?: string; itemName: string; description?: string; quantity: number; unit?: string; unitPrice: number; tax?: number }) => ({ itemId: item.itemId, itemName: item.itemName, description: item.description, quantity: item.quantity, unit: item.unit ?? "pcs", unitPrice: item.unitPrice, tax: item.tax ?? 0, totalPrice: item.quantity * item.unitPrice })) },
