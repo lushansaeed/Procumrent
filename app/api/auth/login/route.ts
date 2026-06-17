@@ -284,11 +284,22 @@ export async function POST(request: NextRequest) {
       lastSyncedAt: new Date(),
     };
 
-    const employee = await db.employee.upsert({
-      where: { hrmsId },
-      update: employeeData,
-      create: employeeData,
+    const existingEmployee = await db.employee.findFirst({
+      where: {
+        OR: [
+          { hrmsId },
+          { email: employeeData.email },
+        ],
+      },
+      orderBy: { updatedAt: "desc" },
     });
+
+    const employee = existingEmployee
+      ? await db.employee.update({
+          where: { id: existingEmployee.id },
+          data: employeeData,
+        })
+      : await db.employee.create({ data: employeeData });
 
     if (employee.employmentStatus !== "ACTIVE") {
       return NextResponse.json({ error: "Your account is inactive. Please contact HR." }, { status: 403 });
