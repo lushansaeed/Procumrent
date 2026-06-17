@@ -63,6 +63,27 @@ export default function NewRequestPage() {
   const removeItem = (id: string) => { if (items.length === 1) { toast.error("At least one item is required"); return; } setItems(prev => prev.filter(item => item.id !== id)); };
   const getRowTotal = (item: RequestItem) => (parseFloat(item.quantity) || 0) * (parseFloat(item.estimatedPrice) || 0);
   const grandTotal = items.reduce((sum, item) => sum + getRowTotal(item), 0);
+  const focusItemName = (index: number) => {
+    setTimeout(() => {
+      document.querySelector<HTMLInputElement>(`[data-item-name-index="${index}"]`)?.focus();
+    }, 0);
+  };
+
+  const handleUnitPriceKeyDown = (event: React.KeyboardEvent<HTMLInputElement>, index: number) => {
+    if (event.key === "Tab" && !event.shiftKey) {
+      event.preventDefault();
+      if (index === items.length - 1) {
+        setItems(prev => [...prev, emptyItem()]);
+      }
+      focusItemName(index + 1);
+      return;
+    }
+
+    if (event.key === "Enter") {
+      event.preventDefault();
+      event.currentTarget.form?.requestSubmit();
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -71,6 +92,8 @@ export default function NewRequestPage() {
     if (!requiredDate) { toast.error("Required date is required"); return; }
     const invalidItem = items.find(item => !item.itemName.trim() || !item.quantity || parseFloat(item.quantity) <= 0);
     if (invalidItem) { toast.error("Please fill in all item names and valid quantities"); return; }
+    const confirmed = window.confirm("Are you sure you want to submit this purchase request?");
+    if (!confirmed) return;
     setLoading(true);
     try {
       const payload = { requestType, priority, deliveryLocationId, requiredDate, purpose: purpose.trim(), remarks: remarks.trim(), estimatedTotal: grandTotal, items: items.map(item => ({ itemName: item.itemName.trim(), description: item.description.trim(), quantity: parseFloat(item.quantity) || 0, unit: item.unit, estimatedPrice: parseFloat(item.estimatedPrice) || 0, estimatedTotal: getRowTotal(item) })) };
@@ -189,11 +212,11 @@ export default function NewRequestPage() {
                   {items.map((item, idx) => (
                     <tr key={item.id} className="border-b">
                       <td className="px-3 py-2 text-gray-400">{idx + 1}</td>
-                      <td className="px-3 py-2"><Input value={item.itemName} onChange={e => updateItem(item.id, "itemName", e.target.value)} placeholder="Item name" className="h-8 text-sm" /></td>
+                      <td className="px-3 py-2"><Input data-item-name-index={idx} value={item.itemName} onChange={e => updateItem(item.id, "itemName", e.target.value)} placeholder="Item name" className="h-8 text-sm" /></td>
                       <td className="px-3 py-2"><Input value={item.description} onChange={e => updateItem(item.id, "description", e.target.value)} placeholder="Optional" className="h-8 text-sm" /></td>
                       <td className="px-3 py-2"><Input type="number" min="0.01" step="any" value={item.quantity} onChange={e => updateItem(item.id, "quantity", e.target.value)} className="h-8 text-sm" /></td>
                       <td className="px-3 py-2"><Select value={item.unit} onValueChange={val => updateItem(item.id, "unit", val)}><SelectTrigger className="h-8 text-sm"><SelectValue /></SelectTrigger><SelectContent>{UNITS.map(u => <SelectItem key={u} value={u}>{u}</SelectItem>)}</SelectContent></Select></td>
-                      <td className="px-3 py-2"><Input type="number" min="0" step="any" value={item.estimatedPrice} onChange={e => updateItem(item.id, "estimatedPrice", e.target.value)} className="h-8 text-sm" /></td>
+                      <td className="px-3 py-2"><Input type="number" min="0" step="any" value={item.estimatedPrice} onChange={e => updateItem(item.id, "estimatedPrice", e.target.value)} onKeyDown={e => handleUnitPriceKeyDown(e, idx)} className="h-8 text-sm" /></td>
                       <td className="px-3 py-2 text-gray-700 font-medium whitespace-nowrap">{formatCurrency(getRowTotal(item))}</td>
                       <td className="px-3 py-2"><Button type="button" variant="ghost" size="sm" onClick={() => removeItem(item.id)} className="h-7 w-7 p-0 text-red-400 hover:text-red-600"><Trash2 size={14} /></Button></td>
                     </tr>
