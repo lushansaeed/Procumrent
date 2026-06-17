@@ -53,7 +53,8 @@ export async function fetchHrmsCompanies(): Promise<HrmsCompany[]> {
         const hrmsCompanyId = pickText(record.id, record.companyId, record.companyID, record.company_id, record.code, record.companyCode);
         const name = pickText(record.name, record.companyName, record.company_name, record.title, record.fullName);
         const code = pickText(record.code, record.companyCode, record.company_code, record.shortCode);
-        return hrmsCompanyId && name ? { hrmsCompanyId, code, name } : null;
+        if (!hrmsCompanyId || !name) return null;
+        return code ? { hrmsCompanyId, code, name } : { hrmsCompanyId, name };
       })
       .filter((item): item is HrmsCompany => Boolean(item));
 
