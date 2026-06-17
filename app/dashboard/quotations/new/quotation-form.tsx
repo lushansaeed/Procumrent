@@ -104,12 +104,35 @@ export function QuotationForm({
     setItems((current) => current.map((item) => (item.id === id ? { ...item, [field]: value } : item)));
   }
 
+  function focusItemName(index: number) {
+    setTimeout(() => {
+      document.querySelector<HTMLInputElement>(`[data-quoted-item-name-index="${index}"]`)?.focus();
+    }, 0);
+  }
+
+  function handleUnitPriceKeyDown(event: React.KeyboardEvent<HTMLInputElement>, index: number) {
+    if (event.key === "Tab" && !event.shiftKey) {
+      event.preventDefault();
+      if (index === items.length - 1) {
+        setItems((current) => [...current, emptyItem()]);
+      }
+      focusItemName(index + 1);
+      return;
+    }
+
+    if (event.key === "Enter") {
+      event.preventDefault();
+      event.currentTarget.form?.requestSubmit();
+    }
+  }
+
   async function submit(event: React.FormEvent) {
     event.preventDefault();
     if (!requestId) return toast.error("Select a request");
     if (!supplierId) return toast.error("Select a supplier");
     const validItems = items.filter((item) => item.itemName.trim() && Number(item.quantity) > 0 && Number(item.unitPrice) >= 0);
     if (validItems.length === 0) return toast.error("Add at least one valid quotation item");
+    if (!window.confirm("Are you sure you want to submit this quotation?")) return;
 
     setLoading(true);
     try {
@@ -243,12 +266,12 @@ export function QuotationForm({
                   </tr>
                 </thead>
                 <tbody>
-                  {items.map((item) => (
+                  {items.map((item, index) => (
                     <tr key={item.id} className="border-b">
-                      <td className="px-3 py-2"><Input value={item.itemName} onChange={(event) => updateItem(item.id, "itemName", event.target.value)} placeholder="Item name" className="h-8" /></td>
+                      <td className="px-3 py-2"><Input data-quoted-item-name-index={index} value={item.itemName} onChange={(event) => updateItem(item.id, "itemName", event.target.value)} placeholder="Item name" className="h-8" /></td>
                       <td className="px-3 py-2"><Input type="number" min="0.01" step="any" value={item.quantity} onChange={(event) => updateItem(item.id, "quantity", event.target.value)} className="h-8 text-right" /></td>
                       <td className="px-3 py-2"><Input value={item.unit} onChange={(event) => updateItem(item.id, "unit", event.target.value)} className="h-8" /></td>
-                      <td className="px-3 py-2"><Input type="number" min="0" step="any" value={item.unitPrice} onChange={(event) => updateItem(item.id, "unitPrice", event.target.value)} className="h-8 text-right" /></td>
+                      <td className="px-3 py-2"><Input type="number" min="0" step="any" value={item.unitPrice} onChange={(event) => updateItem(item.id, "unitPrice", event.target.value)} onKeyDown={(event) => handleUnitPriceKeyDown(event, index)} className="h-8 text-right" /></td>
                       <td className="px-3 py-2 text-right font-medium">{formatCurrency((Number(item.quantity) || 0) * (Number(item.unitPrice) || 0))}</td>
                       <td className="px-3 py-2">
                         <Button type="button" variant="ghost" size="icon" className="h-7 w-7 text-red-500" onClick={() => setItems((current) => current.length === 1 ? current : current.filter((row) => row.id !== item.id))}>
