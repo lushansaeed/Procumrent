@@ -32,6 +32,7 @@ export default async function QuotationDetailPage({ params }: { params: Promise<
   });
 
   if (!quotation) notFound();
+  if (quotation.request.procurementCompanyId && user.activeCompanyId && quotation.request.procurementCompanyId !== user.activeCompanyId) notFound();
 
   const canAct = ["ADMIN", "PROCUREMENT"].includes(user.role);
 

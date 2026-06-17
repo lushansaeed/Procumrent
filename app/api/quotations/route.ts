@@ -21,8 +21,11 @@ export async function POST(req: NextRequest) {
   const count = await db.quotation.count();
   const year = new Date().getFullYear();
   const quotationNumber = `QT-${year}-${String(count + 1).padStart(4, "0")}`;
-  const requestRecord = await db.purchaseRequest.findUnique({ where: { id: requestId }, select: { status: true } });
+  const requestRecord = await db.purchaseRequest.findUnique({ where: { id: requestId }, select: { status: true, procurementCompanyId: true } });
   if (!requestRecord) return NextResponse.json({ error: "Request not found" }, { status: 404 });
+  if (requestRecord.procurementCompanyId && user.activeCompanyId && requestRecord.procurementCompanyId !== user.activeCompanyId) {
+    return NextResponse.json({ error: "Request belongs to another company" }, { status: 403 });
+  }
   const quotation = await db.quotation.create({
     data: {
       quotationNumber, requestId, supplierId, totalAmount: totalAmount ?? 0, deliveryDays, warranty, paymentTerms, availability, remarks,

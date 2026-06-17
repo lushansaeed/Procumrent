@@ -30,6 +30,7 @@ export default async function RequestDetailPage({ params }: PageProps) {
   });
 
   if (!request) notFound();
+  if (request.procurementCompanyId && session.activeCompanyId && request.procurementCompanyId !== session.activeCompanyId) notFound();
 
   const canApprove = request.status === "PENDING_SUPERVISOR_APPROVAL" && (session.role === "MANAGER" || session.role === "DEPARTMENT_HEAD");
   const canCheckStock = request.status === "CHECKING_STOCK" && session.role === "STOREKEEPER";

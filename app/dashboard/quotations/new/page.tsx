@@ -23,11 +23,19 @@ export default async function NewQuotationPage({
   if (!["ADMIN", "PROCUREMENT", "MANAGEMENT"].includes(user.role)) redirect("/dashboard");
 
   const params = await searchParams;
+  const requestWhere = params.requestId
+    ? { OR: [{ status: { in: QUOTATION_REQUEST_STATUSES } }, { id: params.requestId }] }
+    : { status: { in: QUOTATION_REQUEST_STATUSES } };
   const [requests, suppliers] = await Promise.all([
     db.purchaseRequest.findMany({
-      where: params.requestId
-        ? { OR: [{ status: { in: QUOTATION_REQUEST_STATUSES } }, { id: params.requestId }] }
-        : { status: { in: QUOTATION_REQUEST_STATUSES } },
+      where: user.activeCompanyId
+        ? {
+            AND: [
+              requestWhere,
+              { OR: [{ procurementCompanyId: user.activeCompanyId }, { procurementCompanyId: null }] },
+            ],
+          }
+        : requestWhere,
       include: {
         items: {
           select: {

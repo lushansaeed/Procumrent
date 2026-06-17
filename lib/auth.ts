@@ -13,6 +13,11 @@ export interface SessionUser {
   email: string;
   companyId?: string;
   companyName?: string;
+  activeCompanyId?: string;
+  activeCompanyName?: string;
+  activeProjectId?: string;
+  activeProjectName?: string;
+  contexts?: AccessContext[];
   department?: string;
   section?: string;
   designation?: string;
@@ -27,6 +32,16 @@ export interface SessionUser {
   procurementRole?: string;
   moduleAccess?: string[];
   role: string;        // effective procurement role
+}
+
+export interface AccessContext {
+  companyId: string;
+  companyName: string;
+  hrmsCompanyId: string;
+  projectId?: string;
+  projectName?: string;
+  role: string;
+  moduleAccess: string[];
 }
 
 export async function createSession(user: SessionUser) {

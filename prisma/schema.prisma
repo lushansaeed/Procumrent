@@ -37,6 +37,55 @@ model Employee {
   requests      PurchaseRequest[]
   approvals     RequestApproval[]
   notifications Notification[]
+  procurementAccess ProcurementAccess[]
+}
+
+// ─── Procurement Companies (synced from HRMS identity, managed locally) ─────
+model ProcurementCompany {
+  id            String   @id @default(cuid())
+  hrmsCompanyId String   @unique
+  code          String?
+  name          String
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  projects      ProcurementProject[]
+  access        ProcurementAccess[]
+}
+
+model ProcurementProject {
+  id        String             @id @default(cuid())
+  companyId String
+  company   ProcurementCompany @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  code      String
+  name      String
+  isActive  Boolean            @default(true)
+  createdAt DateTime           @default(now())
+  updatedAt DateTime           @updatedAt
+
+  access    ProcurementAccess[]
+
+  @@unique([companyId, code])
+}
+
+model ProcurementAccess {
+  id           String              @id @default(cuid())
+  employeeId   String
+  employee     Employee            @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  companyId    String
+  company      ProcurementCompany  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  projectId    String?
+  project      ProcurementProject? @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  role         String              @default("REQUESTER")
+  moduleAccess String?
+  isActive     Boolean             @default(true)
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
+
+  @@unique([employeeId, companyId, projectId])
+  @@index([companyId])
+  @@index([projectId])
 }
 
 // ─── Location ────────────────────────────────────────────────────────────────
@@ -141,6 +190,8 @@ model PurchaseRequest {
   requesterLocation    String?
   reportingManagerId   String?
   reportingManagerName String?
+  procurementCompanyId String?
+  procurementProjectId String?
 
   deliveryLocationId   String?
   deliveryLocation     Location? @relation(fields: [deliveryLocationId], references: [id])

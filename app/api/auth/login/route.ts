@@ -94,6 +94,11 @@ function hasHrmsRole(roles: string[], role: string) {
   return roles.some((item) => item.trim().toUpperCase() === role);
 }
 
+function roleFromEmployee(employee: { procurementRole: string | null; hrmsRoles: string | null }) {
+  const roles = parseJsonArray(employee.hrmsRoles);
+  return hasHrmsRole(roles, "ADMIN") ? "ADMIN" : employee.procurementRole ?? "REQUESTER";
+}
+
 async function fetchHrmsProfile(baseUrl: string, cookieHeader: string, hrmsUser: UnknownRecord) {
   const employeeId = pickText(hrmsUser.employeeId, hrmsUser.employeeCode, hrmsUser.id);
   const endpoints = [
@@ -262,7 +267,68 @@ export async function POST(request: NextRequest) {
     }
 
     const employeeHrmsRoles = parseJsonArray(employee.hrmsRoles);
-    const procurementRole = hasHrmsRole(employeeHrmsRoles, "ADMIN") ? "ADMIN" : employee.procurementRole ?? "REQUESTER";
+    const fallbackRole = roleFromEmployee(employee);
+    const fallbackModules = parseJsonArray(employee.moduleAccess);
+
+    let activeAccess:
+      | {
+          role: string;
+          moduleAccess: string | null;
+          company: { id: string; name: string; hrmsCompanyId: string };
+          project: { id: string; name: string } | null;
+        }
+      | null = null;
+    let contexts: Array<{
+      companyId: string;
+      companyName: string;
+      hrmsCompanyId: string;
+      projectId?: string;
+      projectName?: string;
+      role: string;
+      moduleAccess: string[];
+    }> = [];
+
+    if (employee.companyId) {
+      const company = await db.procurementCompany.upsert({
+        where: { hrmsCompanyId: employee.companyId },
+        update: { name: employee.companyName ?? employee.companyId, code: employee.companyId, isActive: true },
+        create: { hrmsCompanyId: employee.companyId, name: employee.companyName ?? employee.companyId, code: employee.companyId },
+      });
+
+      const existingAccess = await db.procurementAccess.findFirst({
+        where: { employeeId: employee.id, companyId: company.id, projectId: null },
+      });
+      if (!existingAccess) {
+        await db.procurementAccess.create({
+          data: {
+            employeeId: employee.id,
+            companyId: company.id,
+            role: fallbackRole,
+            moduleAccess: fallbackModules.length > 0 ? JSON.stringify(fallbackModules) : null,
+          },
+        });
+      }
+    }
+
+    const accessRows = await db.procurementAccess.findMany({
+      where: { employeeId: employee.id, isActive: true, company: { isActive: true } },
+      include: { company: true, project: true },
+      orderBy: { createdAt: "asc" },
+    });
+
+    contexts = accessRows.map((access) => ({
+      companyId: access.company.id,
+      companyName: access.company.name,
+      hrmsCompanyId: access.company.hrmsCompanyId,
+      projectId: access.project?.id,
+      projectName: access.project?.name,
+      role: access.role,
+      moduleAccess: parseJsonArray(access.moduleAccess),
+    }));
+
+    activeAccess = accessRows.find((access) => access.company.hrmsCompanyId === employee.companyId && !access.projectId) ?? accessRows[0] ?? null;
+    const procurementRole = activeAccess?.role ?? fallbackRole;
+    const procurementModules = activeAccess ? parseJsonArray(activeAccess.moduleAccess) : fallbackModules;
 
     await createSession({
       id: employee.id,
@@ -271,6 +337,11 @@ export async function POST(request: NextRequest) {
       email: employee.email,
       companyId: employee.companyId ?? undefined,
       companyName: employee.companyName ?? undefined,
+      activeCompanyId: activeAccess?.company.id,
+      activeCompanyName: activeAccess?.company.name,
+      activeProjectId: activeAccess?.project?.id,
+      activeProjectName: activeAccess?.project?.name,
+      contexts,
       department: employee.department ?? undefined,
       section: employee.section ?? undefined,
       designation: employee.designation ?? undefined,
@@ -283,7 +354,7 @@ export async function POST(request: NextRequest) {
       hrmsRoles: employeeHrmsRoles,
       employmentStatus: employee.employmentStatus,
       procurementRole: employee.procurementRole ?? undefined,
-      moduleAccess: parseJsonArray(employee.moduleAccess),
+      moduleAccess: procurementModules,
       role: procurementRole,
     });
 

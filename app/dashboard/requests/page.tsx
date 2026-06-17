@@ -42,6 +42,7 @@ export default async function RequestsPage({ searchParams }: { searchParams: Pro
 
   const whereClause: any = { requesterId: user.id };
   if (statusFilter) whereClause.status = statusFilter;
+  if (user.activeCompanyId) whereClause.OR = [{ procurementCompanyId: user.activeCompanyId }, { procurementCompanyId: null }];
 
   const requests = await db.purchaseRequest.findMany({
     where: whereClause,

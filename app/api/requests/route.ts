@@ -25,6 +25,9 @@ export async function GET(req: NextRequest) {
     }
 
     if (status) where.status = status;
+    if (session.activeCompanyId) {
+      where = { ...where, OR: [{ procurementCompanyId: session.activeCompanyId }, { procurementCompanyId: null }] };
+    }
 
     const [requests, total] = await Promise.all([
       db.purchaseRequest.findMany({
@@ -88,6 +91,8 @@ export async function POST(req: NextRequest) {
         requesterLocation: session.workLocation,
         reportingManagerId: session.reportingManagerId,
         reportingManagerName: session.reportingManagerName,
+        procurementCompanyId: session.activeCompanyId,
+        procurementProjectId: session.activeProjectId,
         deliveryLocationId: body.deliveryLocationId,
         requestType,
         priority,

@@ -37,6 +37,13 @@ type ApprovalMatrix = {
   isActive: boolean;
 };
 
+type ProcurementCompany = {
+  id: string;
+  name: string;
+  hrmsCompanyId: string;
+  projects: Array<{ id: string; name: string; code: string }>;
+};
+
 const roleOptions = [
   "REQUESTER",
   "MANAGER",
@@ -86,14 +93,18 @@ function parseList(value: string | null) {
 export function SettingsActions({
   employees,
   approvalMatrices,
+  companies,
 }: {
   employees: Employee[];
   approvalMatrices: ApprovalMatrix[];
+  companies: ProcurementCompany[];
 }) {
   const router = useRouter();
   const [category, setCategory] = useState({ code: "", name: "", description: "" });
-  const [roleAssignment, setRoleAssignment] = useState({ employeeId: "", role: "REQUESTER", moduleAccess: [] as string[] });
+  const [roleAssignment, setRoleAssignment] = useState({ employeeId: "", companyId: "", projectId: "COMPANY", role: "REQUESTER", moduleAccess: [] as string[] });
+  const [project, setProject] = useState({ companyId: "", code: "", name: "" });
   const selectedEmployee = employees.find((employee) => employee.id === roleAssignment.employeeId);
+  const selectedCompany = companies.find((company) => company.id === roleAssignment.companyId);
   const [matrix, setMatrix] = useState({
     name: "",
     description: "",
@@ -124,11 +135,17 @@ export function SettingsActions({
       toast.error("Select an employee");
       return;
     }
+    if (!roleAssignment.companyId) {
+      toast.error("Select a company");
+      return;
+    }
 
     const res = await fetch(`/api/employees/${roleAssignment.employeeId}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
+        companyId: roleAssignment.companyId,
+        projectId: roleAssignment.projectId === "COMPANY" ? null : roleAssignment.projectId,
         procurementRole: roleAssignment.role,
         moduleAccess: roleAssignment.moduleAccess,
       }),
@@ -143,8 +160,11 @@ export function SettingsActions({
 
   function selectEmployee(employeeId: string) {
     const employee = employees.find((item) => item.id === employeeId);
+    const company = companies.find((item) => item.hrmsCompanyId === employee?.companyId) ?? companies[0];
     setRoleAssignment({
       employeeId,
+      companyId: company?.id ?? "",
+      projectId: "COMPANY",
       role: employee?.procurementRole ?? "REQUESTER",
       moduleAccess: parseList(employee?.moduleAccess ?? null),
     });
@@ -190,6 +210,25 @@ export function SettingsActions({
     router.refresh();
   }
 
+  async function createProject() {
+    if (!project.companyId || !project.code || !project.name) {
+      toast.error("Company, code, and project name are required");
+      return;
+    }
+    const res = await fetch("/api/projects", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(project),
+    });
+    if (!res.ok) {
+      toast.error("Could not create project");
+      return;
+    }
+    toast.success("Project created");
+    setProject({ companyId: "", code: "", name: "" });
+    router.refresh();
+  }
+
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
       <Card>
@@ -224,6 +263,40 @@ export function SettingsActions({
       <Card>
         <CardHeader>
           <CardTitle className="text-base flex items-center gap-2">
+            <Plus className="w-4 h-4 text-blue-600" />
+            Add Procurement Project
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="space-y-1.5">
+            <Label>Company</Label>
+            <Select value={project.companyId} onValueChange={(companyId) => setProject({ ...project, companyId })}>
+              <SelectTrigger><SelectValue placeholder="Select HRMS company" /></SelectTrigger>
+              <SelectContent>
+                {companies.map((company) => <SelectItem key={company.id} value={company.id}>{company.name}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label>Code</Label>
+              <Input value={project.code} onChange={(event) => setProject({ ...project, code: event.target.value.toUpperCase() })} placeholder="PROJECT-A" />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Name</Label>
+              <Input value={project.name} onChange={(event) => setProject({ ...project, name: event.target.value })} placeholder="Project A" />
+            </div>
+          </div>
+          <Button onClick={createProject} disabled={!project.companyId || !project.code || !project.name}>
+            <Save className="w-4 h-4" />
+            Save Project
+          </Button>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base flex items-center gap-2">
             <UserCog className="w-4 h-4 text-blue-600" />
             Assign Procurement Access
           </CardTitle>
@@ -250,6 +323,27 @@ export function SettingsActions({
                 {roleOptions.map((role) => <SelectItem key={role} value={role}>{role}</SelectItem>)}
               </SelectContent>
             </Select>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label>Company</Label>
+              <Select value={roleAssignment.companyId} onValueChange={(companyId) => setRoleAssignment({ ...roleAssignment, companyId, projectId: "COMPANY" })}>
+                <SelectTrigger><SelectValue placeholder="Select company" /></SelectTrigger>
+                <SelectContent>
+                  {companies.map((company) => <SelectItem key={company.id} value={company.id}>{company.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label>Project</Label>
+              <Select value={roleAssignment.projectId} onValueChange={(projectId) => setRoleAssignment({ ...roleAssignment, projectId })}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="COMPANY">Company-wide</SelectItem>
+                  {selectedCompany?.projects.map((item) => <SelectItem key={item.id} value={item.id}>{item.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
           {selectedEmployee && (
             <div className="rounded-md border bg-gray-50 p-3 text-xs text-gray-600">

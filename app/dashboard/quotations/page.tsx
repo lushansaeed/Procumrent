@@ -16,6 +16,9 @@ export default async function QuotationsPage() {
   if (!["ADMIN", "PROCUREMENT", "MANAGEMENT"].includes(user.role)) redirect("/dashboard");
 
   const quotations = await db.quotation.findMany({
+    where: user.activeCompanyId
+      ? { request: { is: { OR: [{ procurementCompanyId: user.activeCompanyId }, { procurementCompanyId: null }] } } }
+      : undefined,
     include: {
       supplier: { select: { name: true, code: true } },
       request: { select: { id: true, requestNumber: true, purpose: true } },

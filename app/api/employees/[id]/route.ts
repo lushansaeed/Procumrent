@@ -23,10 +23,40 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     const moduleAccess = Array.isArray(body.moduleAccess)
       ? body.moduleAccess.filter((item: unknown) => typeof item === "string" && item.trim())
       : undefined;
+    const role = typeof body.procurementRole === "string" ? body.procurementRole : "REQUESTER";
+    const companyId = typeof body.companyId === "string" ? body.companyId : "";
+    const projectId = typeof body.projectId === "string" && body.projectId ? body.projectId : null;
+
+    if (companyId) {
+      const existingAccess = await db.procurementAccess.findFirst({
+        where: { employeeId: id, companyId, projectId },
+      });
+      if (existingAccess) {
+        await db.procurementAccess.update({
+          where: { id: existingAccess.id },
+          data: {
+            role,
+            moduleAccess: moduleAccess ? JSON.stringify(moduleAccess) : null,
+            isActive: true,
+          },
+        });
+      } else {
+        await db.procurementAccess.create({
+          data: {
+            employeeId: id,
+            companyId,
+            projectId,
+            role,
+            moduleAccess: moduleAccess ? JSON.stringify(moduleAccess) : null,
+          },
+        });
+      }
+    }
+
     const employee = await db.employee.update({
       where: { id },
       data: {
-        procurementRole: typeof body.procurementRole === "string" ? body.procurementRole : null,
+        procurementRole: role,
         ...(moduleAccess ? { moduleAccess: JSON.stringify(moduleAccess) } : {}),
       },
     });
