@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Plus, Trash2, ArrowLeft } from "lucide-react";
+import { Plus, Trash2, ArrowLeft, ChevronDown } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -39,6 +39,8 @@ export default function NewRequestPage() {
   const [locations, setLocations] = useState<Location[]>([]);
   const [loading, setLoading] = useState(false);
   const [loadingUser, setLoadingUser] = useState(true);
+  const [showRequesterInfo, setShowRequesterInfo] = useState(false);
+  const [showRequestDetails, setShowRequestDetails] = useState(false);
   const [requestType, setRequestType] = useState("GOODS");
   const [priority, setPriority] = useState("MEDIUM");
   const [deliveryLocationId, setDeliveryLocationId] = useState("");
@@ -93,50 +95,74 @@ export default function NewRequestPage() {
 
       <form onSubmit={handleSubmit} className="space-y-6">
         <Card>
-          <CardHeader><CardTitle className="text-base">Requester Information</CardTitle></CardHeader>
-          <CardContent>
-            {loadingUser ? (
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">{[...Array(5)].map((_, i) => <div key={i} className="h-10 bg-gray-100 rounded animate-pulse" />)}</div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {[{label:"Name",value:user?.name},{label:"Company",value:user?.companyName ?? user?.companyId},{label:"Department",value:user?.department},{label:"Designation",value:user?.designation},{label:"Work Location",value:user?.workLocation}].map(f => (
-                  <div key={f.label}><Label className="text-xs text-gray-500 font-medium">{f.label}</Label><div className="mt-1 px-3 py-2 bg-gray-50 border border-gray-200 rounded-md text-sm text-gray-700">{f.value ?? "—"}</div></div>
-                ))}
-              </div>
-            )}
-          </CardContent>
+          <CardHeader>
+            <button
+              type="button"
+              className="flex w-full items-center justify-between text-left"
+              onClick={() => setShowRequesterInfo((open) => !open)}
+              aria-expanded={showRequesterInfo}
+            >
+              <CardTitle className="text-base">Requester Information</CardTitle>
+              <ChevronDown className={`h-4 w-4 text-gray-500 transition-transform ${showRequesterInfo ? "rotate-180" : ""}`} />
+            </button>
+          </CardHeader>
+          {showRequesterInfo && (
+            <CardContent>
+              {loadingUser ? (
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">{[...Array(5)].map((_, i) => <div key={i} className="h-10 bg-gray-100 rounded animate-pulse" />)}</div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {[{label:"Name",value:user?.name},{label:"Company",value:user?.companyName ?? user?.companyId},{label:"Department",value:user?.department},{label:"Designation",value:user?.designation},{label:"Work Location",value:user?.workLocation}].map(f => (
+                    <div key={f.label}><Label className="text-xs text-gray-500 font-medium">{f.label}</Label><div className="mt-1 px-3 py-2 bg-gray-50 border border-gray-200 rounded-md text-sm text-gray-700">{f.value ?? "—"}</div></div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          )}
         </Card>
 
         <Card>
-          <CardHeader><CardTitle className="text-base">Request Details</CardTitle></CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <Label>Request Type <span className="text-red-500">*</span></Label>
-                <Select value={requestType} onValueChange={setRequestType}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{REQUEST_TYPES.map(t => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}</SelectContent></Select>
+          <CardHeader>
+            <button
+              type="button"
+              className="flex w-full items-center justify-between text-left"
+              onClick={() => setShowRequestDetails((open) => !open)}
+              aria-expanded={showRequestDetails}
+            >
+              <CardTitle className="text-base">Request Details</CardTitle>
+              <ChevronDown className={`h-4 w-4 text-gray-500 transition-transform ${showRequestDetails ? "rotate-180" : ""}`} />
+            </button>
+          </CardHeader>
+          {showRequestDetails && (
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <Label>Request Type <span className="text-red-500">*</span></Label>
+                  <Select value={requestType} onValueChange={setRequestType}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{REQUEST_TYPES.map(t => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}</SelectContent></Select>
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Priority <span className="text-red-500">*</span></Label>
+                  <Select value={priority} onValueChange={setPriority}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{PRIORITIES.map(p => <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>)}</SelectContent></Select>
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Delivery Location <span className="text-red-500">*</span></Label>
+                  <Select value={deliveryLocationId} onValueChange={setDeliveryLocationId}><SelectTrigger><SelectValue placeholder="Select location" /></SelectTrigger><SelectContent>{locations.map(loc => <SelectItem key={loc.id} value={loc.id}>{loc.name}{loc.code ? ` (${loc.code})` : ""}</SelectItem>)}</SelectContent></Select>
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Required By Date <span className="text-red-500">*</span></Label>
+                  <Input type="date" value={requiredDate} onChange={e => setRequiredDate(e.target.value)} min={new Date().toISOString().split("T")[0]} />
+                </div>
               </div>
               <div className="space-y-1.5">
-                <Label>Priority <span className="text-red-500">*</span></Label>
-                <Select value={priority} onValueChange={setPriority}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{PRIORITIES.map(p => <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>)}</SelectContent></Select>
+                <Label>Purpose / Justification <span className="text-red-500">*</span></Label>
+                <textarea className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm resize-none focus:outline-none focus:ring-2 focus:ring-blue-500" rows={3} placeholder="Describe the business need..." value={purpose} onChange={e => setPurpose(e.target.value)} />
               </div>
               <div className="space-y-1.5">
-                <Label>Delivery Location <span className="text-red-500">*</span></Label>
-                <Select value={deliveryLocationId} onValueChange={setDeliveryLocationId}><SelectTrigger><SelectValue placeholder="Select location" /></SelectTrigger><SelectContent>{locations.map(loc => <SelectItem key={loc.id} value={loc.id}>{loc.name}{loc.code ? ` (${loc.code})` : ""}</SelectItem>)}</SelectContent></Select>
+                <Label>Remarks / Additional Notes</Label>
+                <textarea className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm resize-none focus:outline-none focus:ring-2 focus:ring-blue-500" rows={2} placeholder="Any additional information..." value={remarks} onChange={e => setRemarks(e.target.value)} />
               </div>
-              <div className="space-y-1.5">
-                <Label>Required By Date <span className="text-red-500">*</span></Label>
-                <Input type="date" value={requiredDate} onChange={e => setRequiredDate(e.target.value)} min={new Date().toISOString().split("T")[0]} />
-              </div>
-            </div>
-            <div className="space-y-1.5">
-              <Label>Purpose / Justification <span className="text-red-500">*</span></Label>
-              <textarea className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm resize-none focus:outline-none focus:ring-2 focus:ring-blue-500" rows={3} placeholder="Describe the business need..." value={purpose} onChange={e => setPurpose(e.target.value)} />
-            </div>
-            <div className="space-y-1.5">
-              <Label>Remarks / Additional Notes</Label>
-              <textarea className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm resize-none focus:outline-none focus:ring-2 focus:ring-blue-500" rows={2} placeholder="Any additional information..." value={remarks} onChange={e => setRemarks(e.target.value)} />
-            </div>
-          </CardContent>
+            </CardContent>
+          )}
         </Card>
 
         <Card>
