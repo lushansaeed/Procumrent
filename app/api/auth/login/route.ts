@@ -9,7 +9,7 @@ type UnknownRecord = Record<string, unknown>;
 function extractCookies(headers: Headers): string[] {
   if (typeof headers.getSetCookie === "function") return headers.getSetCookie();
   const raw = headers.get("set-cookie");
-  return raw ? raw.split(/,(?=[^ ])/) : [];
+  return raw ? raw.split(/,(?=\s*[^;,\s]+=)/).map((cookie) => cookie.trim()) : [];
 }
 
 function cookiesToHeader(cookieStrings: string[]): string {
@@ -150,6 +150,7 @@ export async function POST(request: NextRequest) {
       headers: {
         "Content-Type": "application/x-www-form-urlencoded",
         Accept: "application/json",
+        "X-Auth-Return-Redirect": "1",
         Cookie: cookiesToHeader(csrfCookies),
         Origin: HRMS_BASE,
         Referer: `${HRMS_BASE}/login`,
