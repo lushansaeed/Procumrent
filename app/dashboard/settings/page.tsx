@@ -173,4 +173,19 @@ export default async function SettingsPage() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {[
                 { label: "Currency", value: "MVR (Maldivian Rufiyaa)" },
-                { label: 
+                { label: "Request Numbering", value: "PR-YYYY-NNNN" },
+                { label: "PO Numbering", value: "PO-YYYY-NNNN" },
+                { label: "GRN Numbering", value: "GRN-YYYY-NNNN" },
+              ].map((setting) => (
+                <div key={setting.label} className="p-4 rounded-lg border bg-gray-50">
+                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">{setting.label}</p>
+                  <p className="mt-1 text-sm font-medium">{setting.value}</p>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  );
+}

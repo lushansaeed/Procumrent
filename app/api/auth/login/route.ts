@@ -372,4 +372,22 @@ export async function POST(request: NextRequest) {
       department: employee.department ?? undefined,
       section: employee.section ?? undefined,
       designation: employee.designation ?? undefined,
-      workLocation: employee.workL
+      workLocation: employee.workLocation ?? undefined,
+      unit: employee.unit ?? undefined,
+      reportingManagerId: employee.reportingManagerId ?? undefined,
+      reportingManagerName: employee.reportingManagerName ?? undefined,
+      departmentManagerId: employee.departmentManagerId ?? undefined,
+      departmentManagerName: employee.departmentManagerName ?? undefined,
+      hrmsRoles: employeeHrmsRoles,
+      employmentStatus: employee.employmentStatus,
+      procurementRole: employee.procurementRole ?? undefined,
+      moduleAccess: procurementModules,
+      role: procurementRole,
+    });
+
+    return NextResponse.json({ ok: true });
+  } catch (err) {
+    console.error("HRMS auth error:", err);
+    return NextResponse.json({ error: "Could not reach HRMS server" }, { status: 502 });
+  }
+}
