@@ -74,8 +74,12 @@ function NavItem({
   badge?: number;
 }) {
   const pathname = usePathname();
+  const isCreatingRequest = pathname === "/dashboard/requests/new";
   const active =
-    href === "/dashboard" ? pathname === href : pathname.startsWith(href);
+    href === "/dashboard"
+      ? pathname === href
+      : (pathname === href || pathname.startsWith(`${href}/`)) &&
+        !(href === "/dashboard/requests" && isCreatingRequest);
   return (
     <Link
       href={href}
