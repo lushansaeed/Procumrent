@@ -87,7 +87,7 @@ function NavItem({
         "flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors",
         active
           ? "bg-blue-600 text-white"
-          : "text-gray-300 hover:bg-gray-800 hover:text-white"
+          : "text-gray-300 hover:bg-gray-800 hover:text-white dark:text-slate-300 dark:hover:bg-slate-800"
       )}
     >
       <Icon className="w-4 h-4 shrink-0" />
@@ -153,8 +153,8 @@ export function Sidebar({ user }: SidebarProps) {
     hasModuleAccess(user, MODULES.SETTINGS);
 
   return (
-    <aside className="w-64 min-h-screen bg-gray-900 text-white flex flex-col shrink-0">
-      <div className="flex items-center gap-2.5 px-6 py-5 border-b border-gray-700">
+    <aside className="w-64 min-h-screen bg-gray-900 text-white flex flex-col shrink-0 dark:bg-slate-950">
+      <div className="flex items-center gap-2.5 px-6 py-5 border-b border-gray-700 dark:border-slate-800">
         <div className="w-8 h-8 bg-blue-500 rounded-lg flex items-center justify-center">
           <ShoppingBag className="w-4 h-4 text-white" />
         </div>
@@ -248,7 +248,7 @@ export function Sidebar({ user }: SidebarProps) {
 
       </nav>
 
-      <div className="px-3 py-4 border-t border-gray-700">
+      <div className="px-3 py-4 border-t border-gray-700 dark:border-slate-800">
         <p className="text-xs text-gray-500 px-3">&copy; 2025 Vahmaafushi</p>
       </div>
     </aside>
